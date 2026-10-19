@@ -156,7 +156,7 @@ $("#favb").addEventListener("click",function(){var on=K.toggleFav(m.id);this.set
 if(m.det){K.loadDetail(m.id).then(function(d){fillDetail(m,d)}).catch(function(){var er='<div class="err-state">'+ico.info+'<p>'+t("loadErr")+'</p><button type="button" class="btn secondary" onclick="location.reload()">'+t("retry")+'</button></div>';["#castBody","#pn-about","#pn-extra","#eps"].forEach(function(s){if($(s))$(s).innerHTML=er})})}
 else fillDetail(m,{d:m.d,tagline:null,crew:[],cast:[]})}
 
-/* ---------- Перегляд: джерела відео з адмін-панелі (YouTube, Vimeo, MP4) ---------- */
+/* ---------- Перегляд: джерела відео з адмін-панелі (YouTube, Vimeo, VK Video, MP4) ---------- */
 function watch(){var m=find();if(!m)return'<div class="wrap">'+notFound()+'</div>';var p=par();
 return'<div class="wrap wpage"><nav class="crumbs" aria-label="'+t("crumbs")+'"><a href="movie.html?id='+encodeURIComponent(m.id)+'">← '+esc(K.title(m,L))+'</a></nav><h1 id="wt">'+esc(K.title(m,L))+'</h1><p class="meta" id="wsub"></p><div class="video wbox" id="wbox">'+skel(1)+'</div><div class="chips2" id="wsrc" role="group" aria-label="'+t("srcL")+'"></div><div class="chips2" id="wcc" role="group" aria-label="'+t("ccL")+'" hidden></div><p class="meta">'+t("srcNote")+'</p></div>'}
 /* Субтитри (WebVTT або SRT): файл завантажується через fetch і підключається як blob, тож працює й з іншого домену без crossorigin на відео */
@@ -186,10 +186,11 @@ K.loadDetail(m.id).then(function(d){var list=d.src||[],subs=d.subs||[],sub="";
   function show(i){var s=list[i];if(cur&&cur.destroy)cur.destroy();cur=null;box.classList.remove("err");box.innerHTML="";
     if(s.provider==="youtube")cur=K.yt(box,{t:m.t,trailer:{yt:s.ref,name:s.label||""}},L,{autoplay:false});
     else if(s.provider==="vimeo")box.innerHTML='<iframe src="https://player.vimeo.com/video/'+encodeURIComponent(s.ref)+'?dnt=1" title="'+esc(m.t)+'" allow="fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+    else if(s.provider==="vk"){var r=String(s.ref).split("_");box.innerHTML='<iframe src="https://vkvideo.ru/video_ext.php?oid='+encodeURIComponent(r[0])+'&id='+encodeURIComponent(r[1])+(r[2]?'&hash='+encodeURIComponent(r[2]):'')+'&hd=4" title="'+esc(m.t)+'" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock" allowfullscreen></iframe>'}
     else{var v=document.createElement("video");v.controls=true;v.playsInline=true;v.preload="metadata";v.src=s.ref;box.appendChild(v);ccInit(v,subs)}
     if(s.provider!=="mp4")$("#wcc").hidden=true;
     document.querySelectorAll("#wsrc button").forEach(function(b,j){b.setAttribute("aria-pressed",String(j===i))})}
-  $("#wsrc").innerHTML=list.length>1?list.map(function(s,i){return'<button type="button" aria-pressed="false">'+esc(s.label||({youtube:"YouTube",vimeo:"Vimeo",mp4:"MP4"})[s.provider])+(s.lang?' · '+esc(s.lang.toUpperCase()):'')+'</button>'}).join(""):"";
+  $("#wsrc").innerHTML=list.length>1?list.map(function(s,i){return'<button type="button" aria-pressed="false">'+esc(s.label||({youtube:"YouTube",vimeo:"Vimeo",vk:"VK Video",mp4:"MP4"})[s.provider])+(s.lang?' · '+esc(s.lang.toUpperCase()):'')+'</button>'}).join(""):"";
   document.querySelectorAll("#wsrc button").forEach(function(b,i){b.addEventListener("click",function(){show(i)})});show(0)})
 .catch(function(){box.innerHTML='<div class="err-state">'+ico.info+'<p>'+t("loadErr")+'</p><button type="button" class="btn secondary" onclick="location.reload()">'+t("retry")+'</button></div>'})}
 

@@ -108,6 +108,8 @@
   Сторінка перегляду `watch.html?id=…[&s=&e=]` показує кнопку «Дивитися» лише коли є ввімкнене джерело. Великі відеофайли в базу не завантажуються.
 - **Головна й підбірки**: порядок блоків, увімкнення, заголовок, ліміт, період показу; «Головний банер» і «Рекомендації редакції» та власні підбірки — ручні списки з порядком і коментарями.
   «Популярні» — лише тайтли з реальною позицією в TMDB Popular (знімок); «Нещодавно вийшли» й «Скоро вийде» — автоматично за датою прем’єри.
+- **VK Video** — провайдер джерела нарівні з YouTube і Vimeo: у поле можна вставити код iframe, посилання на плеєр або сторінку відео — зберігається лише `oid_id[_hash]`, плеєр будується сайтом (16:9).
+  Відповідальність за права на показ додаваного відео — на адміністраторі.
 - **Субтитри** (таблиця `subtitles`, вкладка «Відео й джерела» та діалог серії): файли .srt/.vtt до 2 МБ; SRT перетворюється на WebVTT у браузері, у бакет `media` (папка `content/<id>/subs`) потрапляє лише `text/vtt`.
   Працюють для прямих файлів MP4/WebM. Під плеєром — кнопки мов; за замовчуванням вмикається мова сайту, вибір глядача запам’ятовується (`localStorage kinoua_cc`).
   Файл завантажується через `fetch` і підключається як blob, тому відео не потребує CORS. Субтитри відкритих фільмів лежать у `assets/subs/` (джерела й ліцензії — у NOTE кожного файла).
@@ -128,7 +130,7 @@
   Облік з 19.10.2026 (наявні активні сесії додано під час міграції).
 
 ## Міграції (усі вже застосовані до проєкту `xjkyudhahydookywtahh`)
-`supabase/migrations/`: `…_kinoua_admin_core`, `…_kinoua_admin_rpc`, `…_kinoua_cms_schema`, `…_kinoua_cms_import_catalog` (одноразовий імпорт — не запускати повторно), `…_kinoua_cms_rpc`, `…_kinoua_cms_visible_stable`, `…_kinoua_fix_content_list`, `…_kinoua_add_open_movies` (Sintel і Tears of Steel, CC BY 3.0), `…_kinoua_subtitles`, `…_kinoua_subtitles_duplicate`.
+`supabase/migrations/`: `…_kinoua_admin_core`, `…_kinoua_admin_rpc`, `…_kinoua_cms_schema`, `…_kinoua_cms_import_catalog` (одноразовий імпорт — не запускати повторно), `…_kinoua_cms_rpc`, `…_kinoua_cms_visible_stable`, `…_kinoua_fix_content_list`, `…_kinoua_add_open_movies` (Sintel і Tears of Steel, CC BY 3.0), `…_kinoua_subtitles`, `…_kinoua_subtitles_duplicate`, `…_kinoua_vk_video`.
 Для нового проєкту — виконати по порядку в SQL Editor. Вручну нічого виконувати не потрібно.
 
 ## Ручні перевірки (потрібен вхід Google-акаунтом адміністратора)
