@@ -144,7 +144,10 @@ D.uk={
   "watchEp": "Дивитися серію",
   "epSoon": "Серія ще не вийшла.",
   "srcL": "Джерело відео",
-  "srcNote": "Відео відтворюється з джерела, яке додали адміністратори KinoUA."
+  "srcNote": "Відео відтворюється з джерела, яке додали адміністратори KinoUA.",
+  "ccL": "Субтитри",
+  "ccOff": "Вимк.",
+  "ccErr": "Не вдалося завантажити субтитри"
  },
  "app_ct": {
   "films": "Фільми",
@@ -638,7 +641,10 @@ D.ru={
   "watchEp": "Смотреть серию",
   "epSoon": "Серия ещё не вышла.",
   "srcL": "Источник видео",
-  "srcNote": "Видео воспроизводится из источника, добавленного администраторами KinoUA."
+  "srcNote": "Видео воспроизводится из источника, добавленного администраторами KinoUA.",
+  "ccL": "Субтитры",
+  "ccOff": "Выкл.",
+  "ccErr": "Не удалось загрузить субтитры"
  },
  "app_ct": {
   "films": "Фильмы",
@@ -1132,7 +1138,10 @@ D.en={
   "watchEp": "Watch episode",
   "epSoon": "This episode hasn’t aired yet.",
   "srcL": "Video source",
-  "srcNote": "The video plays from a source added by KinoUA admins."
+  "srcNote": "The video plays from a source added by KinoUA admins.",
+  "ccL": "Subtitles",
+  "ccOff": "Off",
+  "ccErr": "Couldn’t load subtitles"
  },
  "app_ct": {
   "films": "Movies",

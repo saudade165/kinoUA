@@ -158,16 +158,36 @@ else fillDetail(m,{d:m.d,tagline:null,crew:[],cast:[]})}
 
 /* ---------- Перегляд: джерела відео з адмін-панелі (YouTube, Vimeo, MP4) ---------- */
 function watch(){var m=find();if(!m)return'<div class="wrap">'+notFound()+'</div>';var p=par();
-return'<div class="wrap wpage"><nav class="crumbs" aria-label="'+t("crumbs")+'"><a href="movie.html?id='+encodeURIComponent(m.id)+'">← '+esc(K.title(m,L))+'</a></nav><h1 id="wt">'+esc(K.title(m,L))+'</h1><p class="meta" id="wsub"></p><div class="video wbox" id="wbox">'+skel(1)+'</div><div class="chips2" id="wsrc" role="group" aria-label="'+t("srcL")+'"></div><p class="meta">'+t("srcNote")+'</p></div>'}
+return'<div class="wrap wpage"><nav class="crumbs" aria-label="'+t("crumbs")+'"><a href="movie.html?id='+encodeURIComponent(m.id)+'">← '+esc(K.title(m,L))+'</a></nav><h1 id="wt">'+esc(K.title(m,L))+'</h1><p class="meta" id="wsub"></p><div class="video wbox" id="wbox">'+skel(1)+'</div><div class="chips2" id="wsrc" role="group" aria-label="'+t("srcL")+'"></div><div class="chips2" id="wcc" role="group" aria-label="'+t("ccL")+'" hidden></div><p class="meta">'+t("srcNote")+'</p></div>'}
+/* Субтитри (WebVTT або SRT): файл завантажується через fetch і підключається як blob, тож працює й з іншого домену без crossorigin на відео */
+var CCK="kinoua_cc";
+function vtt(x){x=x.replace(/^\uFEFF/,"").replace(/\r/g,"");return/^WEBVTT/.test(x)?x:"WEBVTT\n\n"+x.replace(/(\d\d:\d\d:\d\d),(\d\d\d)/g,"$1.$2")}
+function ccUrl(s){if(!s._u)s._u=fetch(s.url).then(function(r){if(!r.ok)throw new Error(r.status);return r.text()}).then(function(x){x=vtt(x);if(x.indexOf("-->")<0)throw new Error("vtt");return URL.createObjectURL(new Blob([x],{type:"text/vtt"}))});return s._u}
+function ccInit(v,subs){var row=$("#wcc"),tr=[],cur=null,pref=null;row.hidden=!subs.length;if(!subs.length)return;
+  try{pref=localStorage.getItem(CCK)}catch(e){}
+  var by=function(f){for(var i=0;i<subs.length;i++)if(f(subs[i]))return i;return null};
+  cur=pref==="off"?null:[by(function(s){return s.lang===pref}),by(function(s){return s.lang===N[L]}),by(function(s){return s.def})].filter(function(x){return x!=null})[0];if(cur===undefined)cur=null;
+  row.innerHTML='<span class="ccl">'+t("ccL")+':</span><button type="button" data-cc="">'+t("ccOff")+'</button>'+subs.map(function(s,i){return'<button type="button" data-cc="'+i+'" lang="'+esc(s.lang)+'">'+esc(s.label||lnName(s.lang))+'</button>'}).join("");
+  function mark(){row.querySelectorAll("button").forEach(function(b){b.setAttribute("aria-pressed",String(b.dataset.cc===(cur==null?"":String(cur))))})}
+  function set(i,save){cur=i;tr.forEach(function(x,j){if(x)x.track.mode=j===i?"showing":"disabled"});mark();if(save)try{localStorage.setItem(CCK,i==null?"off":subs[i].lang)}catch(e){}}
+  row.querySelectorAll("button").forEach(function(b){b.addEventListener("click",function(){set(b.dataset.cc===""?null:+b.dataset.cc,true)})});mark();
+  // вибір у меню самого плеєра відображається в кнопках; якщо браузер сам увімкнув ще одну доріжку (за мовою системи) — лишаємо лише обрану
+  v.textTracks.addEventListener("change",function(){var on=[];tr.forEach(function(x,j){if(x&&x.track.mode==="showing")on.push(j)});
+    if(on.length>1)set(cur,false);else if(on.length===1&&on[0]!==cur){cur=on[0];mark()}else if(!on.length&&cur!=null&&tr[cur]){cur=null;mark()}});
+  Promise.all(subs.map(function(s,i){return ccUrl(s).catch(function(){var b=row.querySelector('[data-cc="'+i+'"]');if(b){b.disabled=true;b.title=t("ccErr")}if(cur===i){cur=null;mark()}return null})})).then(function(us){if(!v.isConnected)return;
+    // збережена мова недоступна — пробуємо мову сайту, потім «за замовчуванням»
+    if(cur==null&&pref!=="off"){var k=[by(function(s){return s.lang===N[L]}),by(function(s){return s.def})].filter(function(x){return x!=null&&us[x]})[0];if(k!=null)cur=k}
+    us.forEach(function(u,i){if(!u)return;var s=subs[i],x=document.createElement("track");x.kind="subtitles";x.srclang=s.lang;x.label=s.label||lnName(s.lang);x.src=u;if(cur===i)x.default=true;v.appendChild(x);tr[i]=x});set(cur,false)})}
 function watchInit(){var m=find();if(!m)return;var p=par(),sn=+p.s||0,en=+p.e||0,cur=null,box=$("#wbox");
-K.loadDetail(m.id).then(function(d){var list=d.src||[],sub="";
-  if(sn&&en){var se=(d.seasons||[]).filter(function(x){return x.n===sn})[0],e=se&&se.eps.filter(function(x){return x.n===en})[0];list=(e&&e.src)||[];sub=t("season")+" "+sn+" · "+t("epShort")+" "+en+(e&&e.name?" · "+e.name:"");document.title=K.title(m,L)+" — "+sub+" — KinoUA"}
+K.loadDetail(m.id).then(function(d){var list=d.src||[],subs=d.subs||[],sub="";
+  if(sn&&en){var se=(d.seasons||[]).filter(function(x){return x.n===sn})[0],e=se&&se.eps.filter(function(x){return x.n===en})[0];list=(e&&e.src)||[];subs=(e&&e.subs)||[];sub=t("season")+" "+sn+" · "+t("epShort")+" "+en+(e&&e.name?" · "+e.name:"");document.title=K.title(m,L)+" — "+sub+" — KinoUA"}
   $("#wsub").textContent=sub;if(window.KUA_TRACK_VIEW)KUA_TRACK_VIEW(m.id);
   if(!list.length){box.innerHTML='<div class="yt-err">'+ico.info+'<p>'+t("nat")+'</p><a class="btn" href="movie.html?id='+encodeURIComponent(m.id)+'">'+t("more")+'</a></div>';box.classList.add("err");return}
   function show(i){var s=list[i];if(cur&&cur.destroy)cur.destroy();cur=null;box.classList.remove("err");box.innerHTML="";
     if(s.provider==="youtube")cur=K.yt(box,{t:m.t,trailer:{yt:s.ref,name:s.label||""}},L,{autoplay:false});
     else if(s.provider==="vimeo")box.innerHTML='<iframe src="https://player.vimeo.com/video/'+encodeURIComponent(s.ref)+'?dnt=1" title="'+esc(m.t)+'" allow="fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
-    else box.innerHTML='<video controls playsinline preload="metadata" src="'+esc(s.ref)+'"></video>';
+    else{var v=document.createElement("video");v.controls=true;v.playsInline=true;v.preload="metadata";v.src=s.ref;box.appendChild(v);ccInit(v,subs)}
+    if(s.provider!=="mp4")$("#wcc").hidden=true;
     document.querySelectorAll("#wsrc button").forEach(function(b,j){b.setAttribute("aria-pressed",String(j===i))})}
   $("#wsrc").innerHTML=list.length>1?list.map(function(s,i){return'<button type="button" aria-pressed="false">'+esc(s.label||({youtube:"YouTube",vimeo:"Vimeo",mp4:"MP4"})[s.provider])+(s.lang?' · '+esc(s.lang.toUpperCase()):'')+'</button>'}).join(""):"";
   document.querySelectorAll("#wsrc button").forEach(function(b,i){b.addEventListener("click",function(){show(i)})});show(0)})

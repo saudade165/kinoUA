@@ -1,5 +1,5 @@
 // KinoUA CMS: каталог, редактор фільмів і серіалів, жанри, блоки головної.
-// Усі зміни йдуть у Supabase (таблиці content, genres, seasons, episodes, video_sources, content_images, categories, category_items, бакет media).
+// Усі зміни йдуть у Supabase (таблиці content, genres, seasons, episodes, video_sources, subtitles, content_images, categories, category_items, бакет media).
 // Права перевіряє сервер (RLS + admin_role()); інтерфейс лише показує доступні дії.
 (function(){
 "use strict";
@@ -33,7 +33,7 @@ function check(file,kind){var spec=IMG[kind]||{max:8,min:300};return new Promise
   if(file.size>spec.max*1048576)return rej(new Error("Файл "+(file.size/1048576).toFixed(1)+" МБ — більше за ліміт "+spec.max+" МБ."));
   var u=URL.createObjectURL(file),im=new Image();im.onload=function(){URL.revokeObjectURL(u);if(im.naturalWidth<spec.min)rej(new Error("Замале зображення: "+im.naturalWidth+" px завширшки, потрібно щонайменше "+spec.min+" px."));else res({w:im.naturalWidth,h:im.naturalHeight})};
   im.onerror=function(){URL.revokeObjectURL(u);rej(new Error("Файл пошкоджений або це не зображення."))};im.src=u})}
-function upload(file,folder,onp){var ext=({"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/avif":"avif"})[file.type],path=folder+"/"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8)+"."+ext;
+function upload(file,folder,onp){var ext=({"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/avif":"avif","text/vtt":"vtt"})[file.type],path=folder+"/"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8)+"."+ext;
   return token().then(function(tk){return new Promise(function(res,rej){var x=new XMLHttpRequest();x.open("POST",CFG.url.replace(/\/$/,"")+"/storage/v1/object/media/"+path);
     x.setRequestHeader("Authorization","Bearer "+tk);x.setRequestHeader("apikey",CFG.publishableKey);x.setRequestHeader("Content-Type",file.type);x.setRequestHeader("x-upsert","false");x.setRequestHeader("cache-control","31536000");
     x.upload.onprogress=function(e){if(e.lengthComputable&&onp)onp(Math.round(e.loaded/e.total*100))};
@@ -41,8 +41,8 @@ function upload(file,folder,onp){var ext=({"image/jpeg":"jpg","image/png":"png",
     x.onerror=function(){rej(new Error("Немає зв’язку із сховищем. Спробуйте ще раз."))};x.send(file)})})}
 // Видаляє файл зі сховища, лише якщо він більше ніде не використовується
 function dropFile(url){if(!owned(url))return Promise.resolve();var f=function(t,c){return q(sb.from(t).select(c.split(",")[0]).or(c.split(",").map(function(k){return k+'.eq."'+url.replace(/"/g,"")+'"'}).join(",")).limit(1))};
-  return Promise.all([f("content","id,poster,backdrop,banner"),q(sb.from("content_images").select("id").eq("path",url).limit(1)),q(sb.from("episodes").select("id").eq("still",url).limit(1))]).then(function(r){
-    if(r[0].length||r[1].length||r[2].length)return;return sb.storage.from("media").remove([url.slice(MEDIA.length)])}).catch(function(){})}
+  return Promise.all([f("content","id,poster,backdrop,banner"),q(sb.from("content_images").select("id").eq("path",url).limit(1)),q(sb.from("episodes").select("id").eq("still",url).limit(1)),q(sb.from("subtitles").select("id").eq("url",url).limit(1))]).then(function(r){
+    if(r[0].length||r[1].length||r[2].length||r[3].length)return;return sb.storage.from("media").remove([url.slice(MEDIA.length)])}).catch(function(){})}
 
 /* ================= Список каталогу ================= */
 var LQ={s:"",ty:"",g:"",y:"",st:"",trash:false,sort:"updated",page:0,size:20},SEL={};
@@ -133,9 +133,9 @@ function dirty(v){DIRTY=v;setGuard(v);var s=$("#svst");if(s){s.textContent=v?"Є
 function editor(m,id){var isNew=id==="new";PEND=[];NEWUP=[];
 m.innerHTML='<div class="state"><span class="spin"></span></div>';
 Promise.all([genresMap(),cats(),isNew?null:q(sb.from("content").select("*").eq("id",id).single()),isNew?[]:q(sb.from("content_genres").select("genre_slug,position").eq("content_id",id).order("position")),isNew?[]:q(sb.from("category_items").select("category_slug").eq("content_id",id)),
-  isNew?[]:q(sb.from("video_sources").select("*").eq("content_id",id).order("position")),isNew?[]:q(sb.from("content_images").select("*").eq("content_id",id).order("position"))]).then(function(r){
+  isNew?[]:q(sb.from("video_sources").select("*").eq("content_id",id).order("position")),isNew?[]:q(sb.from("content_images").select("*").eq("content_id",id).order("position")),isNew?[]:q(sb.from("subtitles").select("*").eq("content_id",id).order("position"))]).then(function(r){
   GEN=r[0];CATS=r[1];E=r[2]||{id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),_new:true,ty:"films",pub_status:"draft",release_status:"released",short:{},description:{},tagline:{},alt_titles:[],countries:[],audio_langs:[],subs_langs:null,tags:[],cast_list:[],crew:[],with_cast:[]};
-  EX={genres:r[3].map(function(g){return g.genre_slug}),cats:r[4].map(function(c){return c.category_slug}),src:r[5],imgs:r[6]};O=JSON.stringify([E,EX]);dirty(false);
+  EX={genres:r[3].map(function(g){return g.genre_slug}),cats:r[4].map(function(c){return c.category_slug}),src:r[5],imgs:r[6],subs:r[7]};O=JSON.stringify([E,EX]);dirty(false);
   draw(m)}).catch(function(e){m.innerHTML=X.errBox(e)})}
 var TAB="main";
 function f(lab,ctl,hint,req){return'<div class="frow"><span>'+lab+(req?' <b class="req" title="Обов’язкове поле">*</b>':'')+'</span><div>'+ctl+(hint?'<p class="note">'+hint+'</p>':'')+'</div></div>'}
@@ -229,11 +229,33 @@ function bindSrc(p,list,onChange){$$("[data-s]",p).forEach(function(el){el.addEv
   if(k==="is_default"){list.forEach(function(x){x.is_default=false});s.is_default=true}else if(k==="enabled")s.enabled=el.checked;else s[k]=el.value;onChange()})});
   $$("[data-srm]",p).forEach(function(b){b.addEventListener("click",function(){list.splice(+b.dataset.srm,1);onChange(true)})})}
 function srcClean(list){var bad=[];var out=list.map(function(s,i){var ref=parseSrc(s.provider,s.ref);if(!ref)bad.push(i+1);return{provider:s.provider,ref:ref,label:s.label||null,lang:/^[a-z]{2,3}$/.test(s.lang||"")?s.lang:null,is_default:!!s.is_default,enabled:s.enabled!==false,position:i}});return{bad:bad,list:out}}
+/* --- Субтитри: .srt або .vtt; SRT перетворюється на WebVTT ще в браузері, у сховище йде лише .vtt --- */
+var SUBMAX=2,SUBRE=/^(assets\/subs\/[a-z0-9._-]+\.vtt|https:\/\/[^\s"'<>]+)$/;
+function subFile(file,folder,onp){if(!/\.(srt|vtt)$/i.test(file.name))return Promise.reject(new Error("Потрібен файл .srt або .vtt."));if(file.size>SUBMAX*1048576)return Promise.reject(new Error("Файл субтитрів більший за "+SUBMAX+" МБ."));
+  return file.text().then(function(x){x=x.replace(/^\uFEFF/,"").replace(/\r/g,"");if(!/^WEBVTT/.test(x))x="WEBVTT\n\n"+x.replace(/(\d\d:\d\d:\d\d),(\d\d\d)/g,"$1.$2");var n=(x.match(/-->/g)||[]).length;
+    if(!n)throw new Error("У файлі немає жодного таймкоду (00:00:01,000 --> …). Це точно субтитри?");return upload(new Blob([x],{type:"text/vtt"}),folder,onp).then(function(u){return{url:u,cues:n}})})}
+function subRows(list,pre){return'<div class="tw"><table><thead><tr><th>Мова</th><th>Підпис</th><th>Файл</th><th>За замовч.</th><th>Увімкнено</th><th class="vh">Дії</th></tr></thead><tbody>'+(list.length?list.map(function(s,i){var known=LANGS.some(function(l){return l[0]===s.lang});
+  return'<tr><td><select class="sel" data-u="lang" data-i="'+i+'" style="height:36px">'+(known||!s.lang?'':opt(s.lang,s.lang,s.lang))+LANGS.map(function(l){return opt(l[0],l[1],s.lang)}).join("")+'</select></td>'
+ +'<td><input class="in" data-u="label" data-i="'+i+'" value="'+esc(s.label||"")+'" maxlength="80" placeholder="Українська" style="min-width:120px"></td><td><input class="in" data-u="url" data-i="'+i+'" value="'+esc(s.url||"")+'" style="min-width:220px" placeholder="https://….vtt"></td>'
+ +'<td><input type="radio" name="'+pre+'def" data-u="is_default" data-i="'+i+'"'+(s.is_default?' checked':'')+' aria-label="За замовчуванням"></td><td><input type="checkbox" data-u="enabled" data-i="'+i+'"'+(s.enabled!==false?' checked':'')+' aria-label="Увімкнено"></td><td class="acts"><button type="button" class="ib dng" data-urm="'+i+'" aria-label="Видалити субтитри">'+ic("trash",15)+'</button></td></tr>'}).join(""):'<tr><td colspan="6" class="empty">Субтитрів ще немає.</td></tr>')+'</tbody></table></div>'}
+function subClean(list){var bad=[];var out=list.map(function(s,i){var u=(s.url||"").trim();if(!SUBRE.test(u)||!/^[a-z]{2,3}$/.test(s.lang||""))bad.push(i+1);return{lang:s.lang,label:s.label||null,url:u,is_default:!!s.is_default,enabled:s.enabled!==false,position:i}});return{bad:bad,list:out}}
+function subBlock(id,h){return'<'+h+' style="margin-top:22px">Субтитри</'+h+'><p class="note" style="margin-top:0">Файли .srt або .vtt до '+SUBMAX+' МБ (SRT автоматично перетвориться на WebVTT). Показуються у відео з прямого файлу MP4/WebM; YouTube і Vimeo мають власні субтитри. Глядач обирає мову під плеєром; за замовчуванням вмикаються субтитри мовою сайту.</p><div id="'+id+'"></div>'
+ +'<div class="chips" style="margin-top:10px"><label class="btn sec sm" for="'+id+'f">'+ic("plus",16)+'Завантажити .srt / .vtt</label><input type="file" id="'+id+'f" accept=".srt,.vtt" hidden><button type="button" class="btn sec sm" id="'+id+'a">Додати за посиланням</button></div><div class="prog" id="'+id+'p" hidden><i></i><span></span></div>'}
+function subWire(root,id,list,folder,onChange,onNew,onRemove){var draw=function(){var box=$("#"+id,root);box.innerHTML=subRows(list,id);
+   $$("[data-u]",box).forEach(function(el){el.addEventListener(el.type==="checkbox"||el.type==="radio"||el.tagName==="SELECT"?"change":"input",function(){var s=list[+el.dataset.i],k=el.dataset.u;
+     if(k==="is_default"){list.forEach(function(x){x.is_default=false});s.is_default=true}else if(k==="enabled")s.enabled=el.checked;else s[k]=el.value;onChange()})});
+   $$("[data-urm]",box).forEach(function(b){b.addEventListener("click",function(){var s=list.splice(+b.dataset.urm,1)[0];if(s&&owned(s.url))onRemove(s.url);onChange();draw()})})};draw();
+ $("#"+id+"a",root).addEventListener("click",function(){list.push({lang:"uk",label:"",url:"",enabled:true,is_default:!list.length});onChange();draw()});
+ $("#"+id+"f",root).addEventListener("change",function(){var fl=this.files[0];this.value="";if(!fl)return;var pg=$("#"+id+"p",root),bar=pg.querySelector("i"),tx=pg.querySelector("span");pg.hidden=false;bar.style.width="0";tx.style.color="";tx.textContent="Перевірка…";
+   subFile(fl,folder,function(x){bar.style.width=x+"%";tx.textContent="Завантаження… "+x+"%"}).then(function(r){onNew(r.url);var g=((fl.name.match(/[._-]([a-z]{2,3})\.(srt|vtt)$/i)||[])[1]||"").toLowerCase();
+     list.push({lang:LANGS.some(function(l){return l[0]===g})?g:"uk",label:"",url:r.url,enabled:true,is_default:!list.length});pg.hidden=true;toast("Субтитри завантажено, реплік: "+r.cues+". Перевірте мову й збережіть.");onChange();draw()})
+   .catch(function(er){tx.textContent=String(er.message||er);tx.style.color="var(--bad)"})})}
 function videoPane(p){var isS=E.ty==="series";p.innerHTML='<h2>Трейлер</h2><div class="form">'+f("YouTube трейлер",inp("trailer_yt",E.trailer_yt,' placeholder="https://www.youtube.com/watch?v=… або ID"'),"Лише офіційні трейлери, які дозволено вбудовувати.")+f("Назва трейлера",inp("trailer_name",E.trailer_name,' maxlength="120" placeholder="Official Trailer"'))+'</div>'
- +'<h2 style="margin-top:22px">Джерела відео '+(isS?'серіалу (необов’язково)':'фільму')+'</h2><p class="note" style="margin-top:0">Підтримуються YouTube, Vimeo й прямі файли MP4/WebM за https (наприклад, з відеохостингу). Додавайте лише відео, яке дозволено показувати. '+(isS?'Джерела окремих серій — у вкладці «Сезони й серії».':'')+'</p><div id="srcs"></div><button type="button" class="btn sec sm" id="sadd" style="margin-top:10px">'+ic("plus",16)+'Додати джерело</button>';
+ +'<h2 style="margin-top:22px">Джерела відео '+(isS?'серіалу (необов’язково)':'фільму')+'</h2><p class="note" style="margin-top:0">Підтримуються YouTube, Vimeo й прямі файли MP4/WebM за https (наприклад, з відеохостингу). Додавайте лише відео, яке дозволено показувати. '+(isS?'Джерела окремих серій — у вкладці «Сезони й серії».':'')+'</p><div id="srcs"></div><button type="button" class="btn sec sm" id="sadd" style="margin-top:10px">'+ic("plus",16)+'Додати джерело</button>'+subBlock("subs","h2");
  var t=$('[data-k="trailer_yt"]',p);t.addEventListener("change",function(){var id=parseSrc("youtube",t.value);if(t.value&&!id){toast("Не вдалося розпізнати YouTube ID.",true);return}E.trailer_yt=id;t.value=id||"";dirty(true)});
  var draw=function(){$("#srcs",p).innerHTML=srcRows(EX.src,"c");bindSrc($("#srcs",p),EX.src,function(re){dirty(true);if(re)draw()})};draw();
- $("#sadd",p).addEventListener("click",function(){EX.src.push({provider:"youtube",ref:"",enabled:true,is_default:!EX.src.length});dirty(true);draw()})}
+ $("#sadd",p).addEventListener("click",function(){EX.src.push({provider:"youtube",ref:"",enabled:true,is_default:!EX.src.length});dirty(true);draw()});
+ subWire(p,"subs",EX.subs,"content/"+E.id+"/subs",function(){dirty(true)},function(u){NEWUP.push(u)},function(u){PEND.push(u)})}
 /* --- Публікація --- */
 function pubPane(p){p.innerHTML='<h2>Публікація</h2><div class="form">'+f("Статус",'<select class="sel" data-k="pub_status">'+Object.keys(PUB).map(function(k){return opt(k,PUB[k][0],E.pub_status)}).join("")+'</select>',"Відвідувачі бачать лише «Опубліковано» й «Заплановано», коли настав час. Чернетки, приховане, архів і кошик на сайт не потрапляють.")
  +f("Дата публікації",'<input class="in" type="datetime-local" id="pat" value="'+(E.publish_at?new Date(new Date(E.publish_at).getTime()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,16):"")+'">',"Для статусу «Заплановано»: тайтл з’явиться на сайті автоматично в цей час.")+'</div>'
@@ -243,7 +265,7 @@ function pubPane(p){p.innerHTML='<h2>Публікація</h2><div class="form">
 var SS=[];
 function seasonsPane(p){if(E._new){p.innerHTML='<h2>Сезони й серії</h2><p class="empty">Спочатку збережіть чернетку — після цього можна додавати сезони й серії.</p>';return}
  p.innerHTML='<div class="state" style="min-height:120px"><span class="spin"></span></div>';
- q(sb.from("seasons").select("*,episodes(*,video_sources(*))").eq("content_id",E.id).order("number")).then(function(r){SS=r.map(function(s){s.episodes=(s.episodes||[]).sort(function(a,b){return a.number-b.number});return s});drawSeasons(p)}).catch(function(e){p.innerHTML=X.errBox(e)})}
+ q(sb.from("seasons").select("*,episodes(*,video_sources(*),subtitles(*))").eq("content_id",E.id).order("number")).then(function(r){SS=r.map(function(s){s.episodes=(s.episodes||[]).sort(function(a,b){return a.number-b.number});return s});drawSeasons(p)}).catch(function(e){p.innerHTML=X.errBox(e)})}
 function drawSeasons(p){p.innerHTML='<div class="chead"><h2>Сезони й серії</h2><button type="button" class="btn sm" id="sn">'+ic("plus",16)+'Додати сезон</button></div><p class="note" style="margin-top:0">Зміни сезонів і серій зберігаються одразу кнопками в цьому розділі. Порядок — за номером. Приховані серії не показуються відвідувачам; «Скоро вийде» — показуються без перегляду.</p>'
  +(SS.length?SS.map(function(s,si){return'<details class="season"'+(si===SS.length-1?' open':'')+'><summary><b>Сезон '+s.number+'</b> · '+s.episodes.length+' сер.'+(s.year?' · '+s.year:'')+(s.title?' · '+esc(s.title):'')+'</summary>'
  +'<div class="slugrow" style="margin:12px 0"><input class="in" type="number" min="0" data-sf="number" data-si="'+si+'" value="'+s.number+'" style="width:90px" aria-label="Номер сезону"><input class="in" data-sf="title" data-si="'+si+'" value="'+esc(s.title||"")+'" placeholder="Назва сезону (необов’язково)"><input class="in" type="number" data-sf="year" data-si="'+si+'" value="'+esc(s.year||"")+'" placeholder="Рік" style="width:100px"></div>'
@@ -267,19 +289,22 @@ function saveSeason(s){var nums={};for(var i=0;i<s.episodes.length;i++){var n=s.
   var ch=s.episodes.filter(function(e){return e._d});if(!ch.length)return;
   // тимчасові номери, щоб уникнути конфлікту унікальності під час перестановки
   return Promise.all(ch.map(function(e,i){return q(sb.from("episodes").update({number:100000+i}).eq("id",e.id))})).then(function(){return Promise.all(ch.map(function(e){return q(sb.from("episodes").update({number:e.number,title:e.title,air_date:e.air_date,runtime_min:e.runtime_min,status:e.status,position:e.number}).eq("id",e.id))}))})})}
-function epDialog(s,e,p){var src=(e.video_sources||[]).slice().sort(function(a,b){return a.position-b.position}),d=document.createElement("dialog");d.className="wide";var still=e.still,news=null;
+function epDialog(s,e,p){var src=(e.video_sources||[]).slice().sort(function(a,b){return a.position-b.position}),subs=(e.subtitles||[]).slice().sort(function(a,b){return a.position-b.position}),d=document.createElement("dialog");d.className="wide";var still=e.still,news=null,snew=[],sold=[];
  d.innerHTML='<form method="dialog" id="epf"><h2>Сезон '+s.number+' · серія '+e.number+'</h2><div class="form">'+f("Назва",'<input class="in" id="et" value="'+esc(e.title||"")+'">')+[["uk","Опис українською"],["ru","Опис російською"],["en","Опис англійською"]].map(function(l){return f(l[1],'<textarea class="in" id="ed_'+l[0]+'" rows="3">'+esc((e.description||{})[l[0]]||"")+'</textarea>')}).join("")
  +f("Кадр серії",'<div class="mprev backdrop" id="esp">'+(still?'<img src="'+esc(img(still))+'" alt="">':'<span>Немає</span>')+'</div><div class="chips" style="margin-top:8px"><label class="btn sec sm" for="esu">Завантажити</label><input type="file" id="esu" accept="image/jpeg,image/png,image/webp,image/avif" hidden><button type="button" class="btn dng sm" id="esr">Прибрати</button></div><div class="prog" id="pg-ep" hidden><i></i><span></span></div>',"16:9, до 8 МБ.")
- +'</div><h3>Джерела відео серії</h3><div id="esrc"></div><button type="button" class="btn sec sm" id="esa">'+ic("plus",15)+'Додати джерело</button><div class="dacts"><button type="button" class="btn sec" id="ex">Скасувати</button><button class="btn">Зберегти серію</button></div></form>';
+ +'</div><h3>Джерела відео серії</h3><div id="esrc"></div><button type="button" class="btn sec sm" id="esa">'+ic("plus",15)+'Додати джерело</button>'+subBlock("esub","h3")+'<div class="dacts"><button type="button" class="btn sec" id="ex">Скасувати</button><button class="btn">Зберегти серію</button></div></form>';
  document.body.appendChild(d);var drawS=function(){$("#esrc",d).innerHTML=srcRows(src,"e");bindSrc($("#esrc",d),src,function(re){if(re)drawS()})};drawS();
- $("#esa",d).onclick=function(){src.push({provider:"youtube",ref:"",enabled:true,is_default:!src.length});drawS()};$("#ex",d).onclick=function(){if(news)dropFile(news);X.shut(d)};d.addEventListener("cancel",function(e){e.preventDefault();X.shut(d)});
+ $("#esa",d).onclick=function(){src.push({provider:"youtube",ref:"",enabled:true,is_default:!src.length});drawS()};$("#ex",d).onclick=function(){if(news)dropFile(news);snew.forEach(dropFile);X.shut(d)};
+ subWire(d,"esub",subs,"content/"+E.id+"/episodes/subs",function(){},function(u){snew.push(u)},function(u){sold.push(u)});d.addEventListener("cancel",function(e){e.preventDefault();X.shut(d)});
  $("#esu",d).addEventListener("change",function(){var fl=this.files[0];this.value="";if(!fl)return;var pg=$("#pg-ep",d),bar=pg.querySelector("i"),tx=pg.querySelector("span");pg.hidden=false;tx.textContent="Перевірка…";
    check(fl,"still").then(function(){return upload(fl,"content/"+E.id+"/episodes",function(x){bar.style.width=x+"%";tx.textContent="Завантаження… "+x+"%"})}).then(function(u){if(news)dropFile(news);news=u;still=u;pg.hidden=true;$("#esp",d).innerHTML='<img src="'+esc(u)+'" alt="">'}).catch(function(er){tx.textContent=String(er.message||er);tx.style.color="var(--bad)"})});
  $("#esr",d).onclick=function(){still=null;$("#esp",d).innerHTML="<span>Немає</span>"};
- $("#epf",d).addEventListener("submit",function(ev){ev.preventDefault();var c=srcClean(src);if(c.bad.length){toast("Невірне посилання в джерелі №"+c.bad.join(", ")+". YouTube — посилання або ID, Vimeo — посилання або число, файл — https://…mp4",true);return}
+ $("#epf",d).addEventListener("submit",function(ev){ev.preventDefault();var c=srcClean(src),cu=subClean(subs);if(c.bad.length){toast("Невірне посилання в джерелі №"+c.bad.join(", ")+". YouTube — посилання або ID, Vimeo — посилання або число, файл — https://…mp4",true);return}
+   if(cu.bad.length){toast("Перевірте субтитри №"+cu.bad.join(", ")+": потрібні мова й посилання https://… на файл .vtt.",true);return}
    var old=e.still;q(sb.from("episodes").update({title:$("#et",d).value||null,description:{uk:$("#ed_uk",d).value||undefined,ru:$("#ed_ru",d).value||undefined,en:$("#ed_en",d).value||undefined},still:still}).eq("id",e.id))
    .then(function(){return q(sb.from("video_sources").delete().eq("episode_id",e.id))}).then(function(){return c.list.length?q(sb.from("video_sources").insert(c.list.map(function(x){x.episode_id=e.id;return x}))):null})
-   .then(function(){if(old&&old!==still)return dropFile(old)}).then(function(){news=null;X.shut(d);toast("Серію збережено.");seasonsPane(p)}).catch(fail)});d.showModal()}
+   .then(function(){return q(sb.from("subtitles").delete().eq("episode_id",e.id))}).then(function(){return cu.list.length?q(sb.from("subtitles").insert(cu.list.map(function(x){x.episode_id=e.id;return x}))):null})
+   .then(function(){if(old&&old!==still)return dropFile(old)}).then(function(){return Promise.all(sold.map(dropFile))}).then(function(){news=null;snew=[];X.shut(d);toast("Серію збережено.");seasonsPane(p)}).catch(fail)});d.showModal()}
 /* --- Збереження й дії --- */
 function validate(strict){var er=[];if(!E.title_orig&&!E.title_uk)er.push("назва");if(!E.slug||!/^[a-z0-9][a-z0-9-]{1,99}$/.test(E.slug))er.push("коректний slug");if(E.imdb_id&&!/^tt\d{7,9}$/.test(E.imdb_id))er.push("IMDb ID у форматі tt1234567");
  if(E.rating_imdb!=null&&(E.rating_imdb<0||E.rating_imdb>10))er.push("рейтинг 0–10");if(E.pub_status==="scheduled"&&!E.publish_at)er.push("дата запланованої публікації");
@@ -287,6 +312,7 @@ function validate(strict){var er=[];if(!E.title_orig&&!E.title_uk)er.push("на�
 var COLS2=["slug","ty","title_orig","title_uk","title_ru","alt_titles","short","description","tagline","year","premiere_date","countries","cert","cert_region","runtime_min","release_status","orig_lang","audio_langs","subs_langs","rating_imdb","rating_imdb_votes","rating_tmdb","imdb_id","tmdb_id","trailer_yt","trailer_name","poster","backdrop","banner","tags","pub_status","publish_at"];
 function save(status){if(status)E.pub_status=status;var strict=E.pub_status==="published"||E.pub_status==="scheduled",er=validate(strict);if(er.length){toast("Заповніть: "+er.join(", ")+".",true);return Promise.reject(new Error("validation"))}
  var cs=srcClean(EX.src);if(cs.bad.length){toast("Невірне посилання в джерелі відео №"+cs.bad.join(", ")+" (вкладка «Відео й джерела»).",true);return Promise.reject(new Error("validation"))}
+ var cu=subClean(EX.subs);if(cu.bad.length){toast("Перевірте субтитри №"+cu.bad.join(", ")+" (вкладка «Відео й джерела»): потрібні мова й посилання https://… на .vtt.",true);return Promise.reject(new Error("validation"))}
  var s=$("#svst");if(s){s.textContent="Збереження…";s.className="svst"}
  var row={};COLS2.forEach(function(k){row[k]=E[k]===undefined?null:E[k]});["alt_titles","countries","audio_langs","tags"].forEach(function(k){row[k]=row[k]||[]});["short","description","tagline"].forEach(function(k){var o={};Object.keys(row[k]||{}).forEach(function(l){if(row[k][l])o[l]=row[k][l]});row[k]=o});
  if(row.title_orig==null)row.title_orig=row.title_uk;
@@ -297,9 +323,10 @@ function save(status){if(status)E.pub_status=status;var strict=E.pub_status==="p
   .then(function(){var was=JSON.parse(O)[1].cats,add=EX.cats.filter(function(c){return was.indexOf(c)<0}),rm=was.filter(function(c){return EX.cats.indexOf(c)<0});
     return Promise.all(add.map(function(c){return q(sb.from("category_items").select("position").eq("category_slug",c).order("position",{ascending:false}).limit(1)).then(function(r){return q(sb.from("category_items").insert({category_slug:c,content_id:E.id,position:r.length?r[0].position+1:0}))})}).concat(rm.length?[q(sb.from("category_items").delete().eq("content_id",E.id).in("category_slug",rm))]:[]))})
   .then(function(){return q(sb.from("video_sources").delete().eq("content_id",E.id)).then(function(){return cs.list.length?q(sb.from("video_sources").insert(cs.list.map(function(x){x.content_id=E.id;return x}))):null})})
+  .then(function(){return q(sb.from("subtitles").delete().eq("content_id",E.id)).then(function(){return cu.list.length?q(sb.from("subtitles").insert(cu.list.map(function(x){x.content_id=E.id;return x}))):null})})
   .then(function(){return q(sb.from("content_images").delete().eq("content_id",E.id)).then(function(){return EX.imgs.length?q(sb.from("content_images").insert(EX.imgs.map(function(g,i){return{content_id:E.id,role:g.role,path:g.path,caption:g.caption||null,position:i}}))):null})})
   .then(function(){var pend=PEND.slice();PEND=[];NEWUP=[];return Promise.all(pend.map(dropFile))})
-  .then(function(){var wasNew=E._new;E=saved;EX.src=cs.list;O=JSON.stringify([E,EX]);dirty(false);if(wasNew){try{history.replaceState(null,"","#edit/"+E.id)}catch(x){}}draw($("#adm"));return saved})})
+  .then(function(){var wasNew=E._new;E=saved;EX.src=cs.list;EX.subs=cu.list;O=JSON.stringify([E,EX]);dirty(false);if(wasNew){try{history.replaceState(null,"","#edit/"+E.id)}catch(x){}}draw($("#adm"));return saved})})
  .catch(function(e){if(String(e&&e.message)!=="validation"){var m=String(e&&e.message||"");if(/content_slug_key|duplicate key.*slug/.test(m))toast("Такий slug уже зайнятий. Змініть адресу.",true);else fail(e)}dirty(DIRTY);throw e})}
 function act(a,m){var lbl=$("#svst");
  if(a==="draft")return save(E._new||E.pub_status==="published"?"draft":null).then(function(){toast("Чернетку збережено.")}).catch(function(){});

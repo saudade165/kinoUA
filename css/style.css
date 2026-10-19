@@ -973,4 +973,8 @@ html.kua-loading main::after{content:"";position:absolute;left:50%;top:120px;wid
 .chips2{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
 .chips2 button{min-height:40px;padding:0 14px;border-radius:var(--pill);border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font:inherit}
 .chips2 button[aria-pressed=true]{background:var(--btn-primary);color:var(--on-accent);border-color:transparent}
+.chips2[hidden]{display:none}
+.chips2 .ccl{align-self:center;color:var(--muted);font-size:14px;margin-right:2px}
+.chips2 button:disabled{opacity:.45;cursor:not-allowed}
+.wbox>video::cue{font-family:Inter,system-ui,sans-serif;font-size:clamp(15px,2.4vw,26px);line-height:1.35;color:#fff;background:rgba(0,0,0,.72)}
 @media(prefers-reduced-motion:reduce){html.kua-loading main::after{animation:none}}
