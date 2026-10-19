@@ -6,8 +6,8 @@ window.KUA_CONFIG={
   // НІКОЛИ не вставляйте сюди service_role / secret key чи Google Client Secret.
   // Де взяти: Supabase Dashboard → Project Settings → API Keys (Project URL і "Publishable key" або legacy "anon").
   supabase:{
-    url:"",            // напр. "https://<20-символьний-id-проєкту>.supabase.co"
-    publishableKey:""  // "sb_publishable_…" (або legacy anon key "eyJ…")
+    url:"https://xjkyudhahydookywtahh.supabase.co",               // Project URL (перевірено: проєкт приймає цей publishable key)
+    publishableKey:"sb_publishable_4JWdqmcVXmO7WMLVZQeVtA_S5uRPNNB"  // публічний ключ; секретний ключ сюди не вставляти
   },
   // Інші способи входу (Telegram, email) вмикаються лише після появи серверної частини (див. README → «Автентифікація»).
   auth:{
