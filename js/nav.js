@@ -39,12 +39,12 @@ K.words=function(){var v=K.get("words",[]);return Array.isArray(v)?v:[]};
 K.addWord=function(w){var a=K.words().filter(function(x){return x.w!==w.w});a.unshift(w);K.set("words",a.slice(0,200))};
 K.removeWord=function(w){K.set("words",K.words().filter(function(x){return x.w!==w}))};
 
-/* ---------- Деталі фільму: окремий файл data/titles/<id>.js (працює і з file://) ---------- */
+/* ---------- Деталі тайтлу: із Supabase (js/store.js → public_title), кешуються на сторінці ---------- */
 var DET={},WAIT={};
 K.addDetail=function(id,d){DET[id]=d;(WAIT[id]||[]).forEach(function(f){f[0](d)});delete WAIT[id]};
-K.loadDetail=function(id){return new Promise(function(res,rej){if(DET[id])return res(DET[id]);(WAIT[id]=WAIT[id]||[]).push([res,rej]);if(WAIT[id].length>1)return;
-var s=document.createElement("script");s.src="data/titles/"+encodeURIComponent(id)+".js?v="+(window.KUA_VER||"1");s.async=true;
-var fail=function(){(WAIT[id]||[]).forEach(function(f){f[1](new Error("load"))});delete WAIT[id]};s.onerror=fail;setTimeout(function(){if(WAIT[id])fail()},15000);document.head.appendChild(s)})};
+// Подробиці тайтлу — з Supabase (public_title; у режимі попереднього перегляду — admin_preview)
+K.loadDetail=function(id){if(DET[id])return Promise.resolve(DET[id]);if(!window.KUA_TITLE)return Promise.reject(new Error("no store"));
+return window.KUA_TITLE(id).then(function(d){DET[id]=d;return d})};
 
 /* ---------- Постер і картка ---------- */
 K.imgFail=function(img){var p=img.closest(".poster");if(!p)return;var m=K.byId(p.dataset.id);p.classList.remove("real");p.classList.add("fallback");

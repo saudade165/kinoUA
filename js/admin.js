@@ -4,7 +4,7 @@
 (function(){
 "use strict";
 var K=window.KUA,A=window.KUA_AUTH||{problem:"sdk"},sb=A.client,esc=K.esc,L=0;
-var ALL=(window.MOVIES||[]).slice(),G=window.GENRES||{};
+var ALL=[],G=window.GENRES;
 var ME={email:"",role:null,user:null},SEC="home",DAYS=30;
 function $(s,r){return(r||document).querySelector(s)}function $$(s,r){return[].slice.call((r||document).querySelectorAll(s))}
 var I={
@@ -17,7 +17,7 @@ edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',trash:'<path
 up:'<path d="m6 15 6-6 6 6"/>',down:'<path d="m6 9 6 6 6-6"/>',plus:'<path d="M12 5v14M5 12h14"/>',crown:'<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" fill="currentColor" stroke="none"/>',shield:'<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/>',
 check:'<path d="m5 12 4.5 4.5L19 7"/>',x:'<path d="M6 6l12 12M18 6 6 18"/>',lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'};
 function ic(n,s){return'<svg width="'+(s||20)+'" height="'+(s||20)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+I[n]+'</svg>'}
-var NAV=[["home","Головна","home"],["users","Користувачі","users"],["films","Фільми і серіали","films"],["cats","Категорії","cats"],["recs","Рекомендації","recs"],["stats","Статистика","stats"],["roles","Ролі та права","roles"],["set","Налаштування","set"]];
+var NAV=[["home","Головна","home"],["users","Користувачі","users"],["films","Фільми і серіали","films"],["cats","Жанри","cats"],["recs","Головна й підбірки","recs"],["stats","Статистика","stats"],["roles","Ролі та права","roles"],["set","Налаштування","set"]];
 var TYN={films:"Фільм",series:"Серіал",cartoons:"Мультфільм"};
 var LN={en:"англійська",es:"іспанська",ja:"японська",ko:"корейська",hi:"гінді",ta:"тамільська",ru:"російська",uk:"українська",fr:"французька",de:"німецька",it:"італійська",zh:"китайська"};
 var RN={owner:"Головний адміністратор",admin:"Адміністратор"};
@@ -34,12 +34,15 @@ function badgeRole(r){return r==="owner"?'<span class="badge b-own">'+ic("crown"
 
 /* ---------- Каркас ---------- */
 function shell(){$("#snav").innerHTML=NAV.map(function(n){return'<button type="button" data-sec="'+n[0]+'">'+ic(n[2])+'<span>'+n[1]+'</span></button>'}).join("");
-$$("#snav button").forEach(function(b){b.addEventListener("click",function(){go(b.dataset.sec);menu(false)})});
+$$("#snav button").forEach(function(b){b.addEventListener("click",function(){menu(false);if(location.hash==="#"+b.dataset.sec&&SEC===b.dataset.sec)go(b.dataset.sec);else location.hash=b.dataset.sec})});
 var u=ME.user||{},md=u.user_metadata||{};$("#who").innerHTML=av(ME.email,md.avatar_url||md.picture)+'<div><b>'+esc(ME.email)+'</b><small>'+(ME.role==="owner"?'<span style="color:var(--warn)">'+ic("crown",12)+'</span>':ic("shield",12))+esc(RN[ME.role])+'</small></div><button type="button" class="btn sec sm" id="lo">Вийти</button>';
 $("#lo").addEventListener("click",function(){A.signOut().then(function(){location.href="profile.html"})});
 $("#burger").addEventListener("click",function(){menu(!$("#side").classList.contains("open"))});$("#scrim").addEventListener("click",function(){menu(false)});
 addEventListener("keydown",function(e){if(e.key==="Escape")menu(false)});
-addEventListener("hashchange",function(){var s=location.hash.slice(1);if(s&&s!==SEC&&NAV.some(function(n){return n[0]===s}))go(s,true)})}
+addEventListener("hashchange",function(){var s=location.hash.slice(1);if(s&&s!==SEC&&(NAV.some(function(n){return n[0]===s})||/^edit\//.test(s)))route(s)})}
+// Перехід між розділами з перевіркою незбережених змін у редакторі
+function route(s){var pr=CMS&&window.KUA_DIRTY?CMS.leave():Promise.resolve(true);pr.then(function(ok){if(!ok){try{history.replaceState(null,"","#"+SEC)}catch(e){}return}if(/^edit\//.test(s))edit(s.slice(5));else go(s,true)})}
+function edit(id){SEC="edit/"+id;$$("#snav button").forEach(function(b){if(b.dataset.sec==="films")b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});document.title="Редактор — Адмін-панель KinoUA";var m=$("#adm");cms().editor(m,id);m.focus({preventScroll:true})}
 function menu(o){$("#side").classList.toggle("open",o);$("#scrim").hidden=!o;$("#burger").setAttribute("aria-expanded",String(o))}
 function go(s,fromHash){SEC=s;$$("#snav button").forEach(function(b){if(b.dataset.sec===s)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
 if(!fromHash)try{history.replaceState(null,"","#"+s)}catch(e){}
@@ -65,19 +68,18 @@ function legend(keys){return'<div class="legend">'+keys.map(function(k){return'<
 function bars(rows){var m=Math.max.apply(null,rows.map(function(r){return r[1]}).concat([1]));return rows.length?'<div class="bars">'+rows.map(function(r){return'<div class="bar"><span title="'+esc(r[0])+'">'+esc(r[0])+'</span><i style="width:'+Math.max(1,r[1]/m*100)+'%"></i><em>'+nf(r[1])+'</em></div>'}).join("")+'</div>':'<p class="empty">Даних ще немає.</p>'}
 
 /* ---------- Головна ---------- */
-function avgImdb(){var v=ALL.map(function(m){var r=K.rating(m,"IMDb");return r?r.v:null}).filter(function(x){return x!=null});return v.length?(v.reduce(function(a,b){return a+b},0)/v.length):null}
 function home(m){q(sb.rpc("admin_stats",{p_days:DAYS})).then(function(s){
-var films=ALL.filter(function(x){return x.ty==="films"}).length,avg=avgImdb(),dv=s.views_prev_period?Math.round((s.views_period-s.views_prev_period)/s.views_prev_period*100):null;
+var cat=s.catalog||{},films=cat.films||0,avg=cat.avg_imdb!=null?+cat.avg_imdb:null,dv=s.views_prev_period?Math.round((s.views_period-s.views_prev_period)/s.views_prev_period*100):null;
 m.innerHTML=head("Адмін-панель","Ласкаво просимо до панелі управління KinoUA",period())
 +'<div class="stats">'
 +'<div class="card stat"><span class="ic">'+ic("users",26)+'</span><div><small>Всього користувачів</small><b>'+nf(s.users_total)+'</b><span class="delta'+(s.users_new_7d?'':' n')+'">'+(s.users_new_7d?'↑ +':'')+nf(s.users_new_7d)+' за тиждень</span></div></div>'
-+'<div class="card stat"><span class="ic">'+ic("films",26)+'</span><div><small>Тайтлів у каталозі</small><b>'+nf(ALL.length)+'</b><span class="delta n">з них фільмів: '+films+'</span></div></div>'
++'<div class="card stat"><span class="ic">'+ic("films",26)+'</span><div><small>Тайтлів на сайті</small><b>'+nf(cat.visible)+'</b><span class="delta n">усього в базі: '+nf(cat.total)+(cat.drafts?' · чернеток: '+cat.drafts:'')+'</span></div></div>'
 +'<div class="card stat"><span class="ic">'+ic("eye",26)+'</span><div><small>Переглядів сторінок тайтлів</small><b>'+nf(s.views_period)+'</b><span class="delta'+(dv==null?' n':dv<0?' d':'')+'">'+(dv==null?(s.views_since?'облік з '+d2(s.views_since):'облік щойно запущено'):(dv>=0?'↑ +':'↓ ')+dv+'% до попер. періоду')+'</span></div></div>'
-+'<div class="card stat"><span class="ic y">'+ic("star",26)+'</span><div><small>Середній рейтинг IMDb</small><b>'+(avg?avg.toFixed(1):"—")+'</b><span class="delta n">по каталогу</span></div></div></div>'
-+'<div class="g2"><section class="card" aria-labelledby="ha"><div class="chead"><h2 id="ha">Активність користувачів</h2>'+legend(AK)+'</div>'+chart(s.series||[],AK)+'<p class="note">Нові реєстрації й останні входи — з Supabase Auth; перегляди — з обліку на сайті (з '+(s.views_since?d2(s.views_since):'моменту запуску')+'). Активних за період: '+nf(s.users_active_period)+'.</p></section>'
++'<div class="card stat"><span class="ic y">'+ic("star",26)+'</span><div><small>Середній рейтинг IMDb</small><b>'+(avg?avg.toFixed(1):"—")+'</b><span class="delta n">по опублікованих тайтлах</span></div></div></div>'
++'<div class="g2"><section class="card" aria-labelledby="ha"><div class="chead"><h2 id="ha">Активність користувачів</h2>'+legend(AK)+'</div>'+chart(s.series||[],AK)+'<p class="note">Реєстрації — з Supabase Auth. Входи — кожна нова сесія входу (облік з '+(s.logins_since?d2(s.logins_since):'моменту запуску')+'), а не лише останній вхід. Перегляди — сторінки тайтлів з дедуплікацією (облік з '+(s.views_since?d2(s.views_since):'моменту запуску')+'). Входили за період: '+nf(s.users_active_period)+' корист., '+nf(s.logins_period)+' входів.</p></section>'
 +'<section class="card" aria-labelledby="hr"><h2 id="hr">Останні реєстрації</h2>'+(s.recent_users.length?'<ul class="recent">'+s.recent_users.map(function(u){return'<li>'+av(u.email,u.avatar)+'<span>'+esc(u.email)+'</span><time datetime="'+esc(u.created_at)+'">'+rel(u.created_at)+'</time></li>'}).join("")+'</ul>':'<p class="empty">Ще немає реєстрацій.</p>')+'</section></div>';
 bindPeriod()}).catch(function(e){m.innerHTML=errBox(e)})}
-var AK=[["new_users","Нові користувачі","#9B7BFF"],["signins","Останні входи","#5B9BFF"],["views","Перегляди","#3DD68C"]];
+var AK=[["new_users","Нові користувачі","#9B7BFF"],["signins","Входи (сесії)","#5B9BFF"],["views","Перегляди","#3DD68C"]];
 function errBox(e){var t=String(e&&e.message||e);return'<div class="err" role="alert">Не вдалося завантажити дані: '+esc(/forbidden/.test(t)?"немає прав":t)+'</div>'}
 
 /* ---------- Користувачі ---------- */
@@ -100,8 +102,10 @@ return'<div class="pager"><span>Показано '+Math.min(total,cur*size+1)+'�
 function bindPager(fn){$$("#ut [data-pg]").forEach(function(b){b.addEventListener("click",function(){UQ.page=+b.dataset.pg;fn()})})}
 
 /* ---------- Ролі ---------- */
-function confirmDlg(title,text,ok,danger){return new Promise(function(res){var d=document.createElement("dialog");d.innerHTML='<h2>'+esc(title)+'</h2><p style="color:var(--mu)">'+text+'</p><div class="dacts"><button type="button" class="btn sec" value="0">Скасувати</button><button type="button" class="btn'+(danger?' dng':'')+'" value="1">'+esc(ok)+'</button></div>';
-document.body.appendChild(d);$$("button",d).forEach(function(b){b.addEventListener("click",function(){d.close(b.value)})});d.addEventListener("close",function(){res(d.returnValue==="1");d.remove()});d.showModal()})}
+function confirmDlg(title,text,ok,danger){return new Promise(function(res){var d=document.createElement("dialog"),done=false,fin=function(v){if(done)return;done=true;try{d.close()}catch(e){}d.remove();res(v)};d.innerHTML='<h2>'+esc(title)+'</h2><p style="color:var(--mu)">'+text+'</p><div class="dacts"><button type="button" class="btn sec" value="0">Скасувати</button><button type="button" class="btn'+(danger?' dng':'')+'" value="1">'+esc(ok)+'</button></div>';
+document.body.appendChild(d);$$("button",d).forEach(function(b){b.addEventListener("click",function(){fin(b.value==="1")})});d.addEventListener("cancel",function(e){e.preventDefault();fin(false)});d.showModal()})}
+// Закриття діалогу без залежності від події close (вона приходить асинхронно): прибирає елемент одразу
+function shut(d){try{d.close()}catch(e){}d.remove()}
 function addAdmin(email,after){email=String(email||"").trim().toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast("Вкажіть коректний email.",true);return}
 confirmDlg("Призначити адміністратора?",'<b>'+esc(email)+'</b> отримає обмежені права адміністратора: користувачі (перегляд), каталог, рекомендації, статистика, налаштування сайту. Керувати адміністраторами він не зможе.',"Призначити").then(function(y){if(!y)return;
 q(sb.from("admin_users").insert({email:email,role:"admin"})).then(function(){toast("Адміністратора призначено.");after()}).catch(function(e){if(/duplicate|23505/.test(e&&e.code+" "+e.message))toast("Цей email уже має роль.",true);else fail(e)})})}
@@ -117,83 +121,28 @@ m.innerHTML=head("Ролі та права","Керування адмініст
 +(adm.length?adm.map(function(r){return'<section class="card role"><span class="ri adm">'+ic("shield",30)+'</span><div><h3>Адміністратор</h3><p class="em">'+esc(r.email)+'</p><p class="note">Призначив: '+esc(r.added_by||"—")+' · '+d2(r.added_at)+'</p></div>'+rightsList("admin")+'<div class="ract">'+(isOwner()?'<button type="button" class="btn dng sm" data-rm="'+esc(r.email)+'">Зняти права</button>':'')+'</div></section>'}).join(""):'<p class="empty card">Інших адміністраторів немає.</p>')+'</div>'
 +'<p class="note">Головного адміністратора не можна змінити, зняти чи призначити через панель — це заборонено правилами бази даних, а не лише інтерфейсом. Новий адміністратор отримує доступ після входу через Google з цим email.</p>';
 var ad=$("#ad");if(ad)ad.addEventListener("click",function(){var d=document.createElement("dialog");d.innerHTML='<form method="dialog" id="af"><h2>Додати адміністратора</h2><p style="color:var(--mu)">Обмежені права. Email має збігатися з Google-акаунтом, яким людина входить.</p><label for="ae" class="vh">Email</label><input class="in" id="ae" type="email" required placeholder="name@gmail.com" autocomplete="off"><div class="dacts"><button type="button" class="btn sec" id="ac">Скасувати</button><button class="btn">Далі</button></div></form>';
-document.body.appendChild(d);$("#ac",d).onclick=function(){d.close()};$("#af",d).addEventListener("submit",function(e){e.preventDefault();var v=$("#ae",d).value;d.close();addAdmin(v,function(){go("roles")})});d.addEventListener("close",function(){d.remove()});d.showModal()});
+document.body.appendChild(d);$("#ac",d).onclick=function(){shut(d)};$("#af",d).addEventListener("submit",function(e){e.preventDefault();var v=$("#ae",d).value;shut(d);addAdmin(v,function(){go("roles")})});d.addEventListener("cancel",function(e){e.preventDefault();shut(d)});d.showModal()});
 $$("[data-rm]",m).forEach(function(b){b.addEventListener("click",function(){rmAdmin(b.dataset.rm,function(){go("roles")})})})}).catch(function(e){m.innerHTML=errBox(e)})}
 
-/* ---------- Фільми і серіали ---------- */
-var FQ={s:"",ty:"",g:"",st:"",sort:"pop",page:0},FLAGS={},RECS=[];
-function loadFlags(){return Promise.all([q(sb.from("title_flags").select("title_id,hidden,updated_by,updated_at")),q(sb.from("recommendations").select("id,title_id,position,note,created_by,created_at").order("position").order("id"))]).then(function(r){FLAGS={};r[0].forEach(function(f){FLAGS[f.title_id]=f});RECS=r[1]})}
-function films(m){loadFlags().then(function(){
-m.innerHTML=head("Фільми і серіали","Керування показом тайтлів каталогу на сайті",'<button type="button" class="btn" disabled title="Каталог формується з TMDB скриптом у репозиторії (tools/), а не з панелі">'+ic("plus",18)+'Додати фільм</button>')
-+'<div class="tools"><div class="grow"><label class="vh" for="fs">Пошук</label><input class="in" id="fs" type="search" placeholder="Пошук фільму або серіалу…" value="'+esc(FQ.s)+'"></div>'
-+sel("ft","Тип",[["","Усі типи"],["films","Фільми"],["cartoons","Мультфільми"],["series","Серіали"]],FQ.ty)
-+sel("fg","Жанр",[["","Усі жанри"]].concat(Object.keys(G).filter(function(k){return ALL.some(function(x){return x.g.indexOf(k)>-1})}).map(function(k){return[k,G[k][1]]})),FQ.g)
-+sel("fst","Статус",[["","Усі статуси"],["pub","Опубліковано"],["hid","Приховано"],["rec","У рекомендаціях"]],FQ.st)
-+sel("fo","Сортування",[["pop","За популярністю"],["y","За роком"],["r","За рейтингом IMDb"],["t","За назвою"]],FQ.sort)+'</div><div id="ftb"></div>'
-+'<p class="note">Каталог — перевірені дані TMDB у файлах сайту. Тут можна приховати тайтл з усіх сторінок або додати в рекомендації; зміни бачать відвідувачі після оновлення сторінки.</p>';
-$("#fs").addEventListener("input",function(){FQ.s=this.value;FQ.page=0;filmTable()});["ft","fg","fst","fo"].forEach(function(id){$("#"+id).addEventListener("change",function(){FQ.ty=$("#ft").value;FQ.g=$("#fg").value;FQ.st=$("#fst").value;FQ.sort=$("#fo").value;FQ.page=0;filmTable()})});filmTable()}).catch(function(e){m.innerHTML=errBox(e)})}
-function sel(id,lab,opts,v){return'<label class="vh" for="'+id+'">'+lab+'</label><select class="sel" id="'+id+'">'+opts.map(function(o){return'<option value="'+esc(o[0])+'"'+(o[0]===v?' selected':'')+'>'+esc(o[1])+'</option>'}).join("")+'</select>'}
-function isRec(id){return RECS.some(function(r){return r.title_id===id})}
-function filmTable(){var s=FQ.s.toLowerCase().trim(),rows=ALL.filter(function(x){var hay=[x.t,x.n&&x.n.uk,x.n&&x.n.ru].join(" ").toLowerCase(),h=FLAGS[x.id]&&FLAGS[x.id].hidden;
-return(!s||hay.indexOf(s)>-1)&&(!FQ.ty||x.ty===FQ.ty)&&(!FQ.g||x.g.indexOf(FQ.g)>-1)&&(!FQ.st||(FQ.st==="hid"?h:FQ.st==="pub"?!h:isRec(x.id)))});
-var ir=function(x){var r=K.rating(x,"IMDb");return r?r.v:-1};rows.sort(function(a,b){return FQ.sort==="y"?b.y-a.y:FQ.sort==="r"?ir(b)-ir(a):FQ.sort==="t"?K.title(a,L).localeCompare(K.title(b,L),"uk"):(a.pop||9999)-(b.pop||9999)});
-var size=10,total=rows.length,page=Math.min(FQ.page,Math.max(0,Math.ceil(total/size)-1));FQ.page=page;var sl=rows.slice(page*size,page*size+size);
-$("#ftb").innerHTML='<div class="tw"><table><thead><tr><th>Постер</th><th>Назва</th><th>Тип</th><th>Жанри</th><th>Рік</th><th>IMDb</th><th>Статус</th><th class="vh">Дії</th></tr></thead><tbody>'
-+(sl.length?sl.map(function(x){var h=FLAGS[x.id]&&FLAGS[x.id].hidden,r=K.rating(x,"IMDb");return'<tr><td><img class="poster" src="'+esc(x.poster)+'" alt="" width="40" height="60" loading="lazy" onerror="this.style.visibility=\'hidden\'"></td><td><div class="tcell" style="min-width:180px"><div><b>'+esc(K.title(x,L))+'</b><small lang="en">'+esc(x.t)+'</small></div></div></td><td>'+TYN[x.ty]+'</td><td>'+esc(K.genres(x,L))+'</td><td>'+x.y+'</td><td>'+(r?r.v.toFixed(1):'—')+'</td><td>'+(h?'<span class="badge b-off">Приховано</span>':'<span class="badge b-ok">Опубліковано</span>')+(isRec(x.id)?' <span class="badge b-adm">Рекомендація</span>':'')+'</td>'
-+'<td class="acts"><a class="ib" href="movie.html?id='+esc(x.id)+'" target="_blank" rel="noopener" aria-label="Відкрити на сайті: '+esc(K.title(x,L))+'">'+ic("eye",17)+'</a><button type="button" class="ib" data-ed="'+esc(x.id)+'" aria-label="Редагувати показ: '+esc(K.title(x,L))+'">'+ic("edit",17)+'</button><button type="button" class="ib dng" data-hd="'+esc(x.id)+'" aria-label="'+(h?'Опублікувати':'Приховати')+': '+esc(K.title(x,L))+'">'+ic(h?"check":"hide",17)+'</button></td></tr>'}).join(""):'<tr><td colspan="8" class="empty">Нічого не знайдено.</td></tr>')+'</tbody></table></div>';
-$("#ftb").insertAdjacentHTML("beforeend",pager(total,page,size));$$("#ftb [data-pg]").forEach(function(b){b.addEventListener("click",function(){FQ.page=+b.dataset.pg;filmTable()})});
-$$("#ftb [data-hd]").forEach(function(b){b.addEventListener("click",function(){toggleHidden(b.dataset.hd)})});$$("#ftb [data-ed]").forEach(function(b){b.addEventListener("click",function(){editTitle(b.dataset.ed)})})}
-function toggleHidden(id,force){var h=FLAGS[id]&&FLAGS[id].hidden,nv=force==null?!h:force,m=K.byId(id);
-q(sb.from("title_flags").upsert({title_id:id,hidden:nv}).select()).then(function(r){FLAGS[id]=r[0];toast((nv?"Приховано: ":"Опубліковано: ")+K.title(m,L));if(SEC==="films")filmTable()}).catch(fail)}
-function editTitle(id){var x=K.byId(id),h=FLAGS[id]&&FLAGS[id].hidden,rec=RECS.filter(function(r){return r.title_id===id})[0],f=FLAGS[id],d=document.createElement("dialog");
-d.innerHTML='<form method="dialog" id="ef"><h2>'+esc(K.title(x,L))+'</h2><p style="color:var(--mu);margin-top:0">'+TYN[x.ty]+' · '+x.y+' · '+esc(K.genres(x,L))+'</p>'
-+'<label class="sw"><input type="checkbox" id="eh"'+(h?'':' checked')+'> Опубліковано на сайті</label><br><label class="sw"><input type="checkbox" id="er"'+(rec?' checked':'')+'> У рекомендаціях редакції</label>'
-+'<p style="margin:14px 0 6px;color:var(--mu);font-size:14px"><label for="en">Коментар до рекомендації (необов’язково, до 300 символів)</label></p><input class="in" id="en" maxlength="300" value="'+esc(rec&&rec.note||"")+'">'
-+(f?'<p class="note">Змінено: '+esc(f.updated_by||"—")+' · '+rel(f.updated_at)+'</p>':'')+'<div class="dacts"><button type="button" class="btn sec" id="ex">Скасувати</button><button class="btn">Зберегти</button></div></form>';
-document.body.appendChild(d);$("#ex",d).onclick=function(){d.close()};d.addEventListener("close",function(){d.remove()});
-$("#ef",d).addEventListener("submit",function(e){e.preventDefault();var pub=$("#eh",d).checked,wr=$("#er",d).checked,note=$("#en",d).value.trim()||null,jobs=[];
-if(pub===!!h)jobs.push(q(sb.from("title_flags").upsert({title_id:id,hidden:!pub})));
-if(wr&&!rec)jobs.push(q(sb.from("recommendations").insert({title_id:id,note:note,position:RECS.length?Math.max.apply(null,RECS.map(function(r){return r.position}))+1:0})));
-else if(wr&&rec&&(rec.note||null)!==note)jobs.push(q(sb.from("recommendations").update({note:note}).eq("id",rec.id)));
-else if(!wr&&rec)jobs.push(q(sb.from("recommendations").delete().eq("id",rec.id)));
-Promise.all(jobs).then(function(){d.close();toast("Збережено.");return loadFlags()}).then(function(){if(SEC==="films")filmTable()}).catch(fail)});d.showModal()}
-
-/* ---------- Категорії ---------- */
-function cats(m){loadFlags().then(function(){var keys=Object.keys(G).filter(function(k){return ALL.some(function(x){return x.g.indexOf(k)>-1})});
-var rows=keys.map(function(k){var a=ALL.filter(function(x){return x.g.indexOf(k)>-1}),c=function(t){return a.filter(function(x){return x.ty===t}).length};return{k:k,all:a.length,f:c("films"),c:c("cartoons"),s:c("series"),h:a.filter(function(x){return FLAGS[x.id]&&FLAGS[x.id].hidden}).length}}).sort(function(a,b){return b.all-a.all});
-m.innerHTML=head("Категорії","Жанри каталогу й кількість тайтлів у кожному")+'<div class="tw"><table><thead><tr><th>Жанр</th><th>Усього</th><th>Фільми</th><th>Мультфільми</th><th>Серіали</th><th>Приховано</th><th class="vh">Дії</th></tr></thead><tbody>'
-+rows.map(function(r){return'<tr><td><span aria-hidden="true">'+G[r.k][0]+'</span> '+esc(G[r.k][1])+' <small style="color:var(--mu)">'+esc(G[r.k][3])+'</small></td><td><b>'+r.all+'</b></td><td>'+r.f+'</td><td>'+r.c+'</td><td>'+r.s+'</td><td>'+(r.h?'<span class="badge b-off">'+r.h+'</span>':'0')+'</td><td class="acts"><button type="button" class="btn sec sm" data-cg="'+r.k+'">Тайтли</button> <a class="btn sec sm" href="catalog.html?genre='+r.k+'" target="_blank" rel="noopener">На сайті</a></td></tr>'}).join("")+'</tbody></table></div>'
-+'<p class="note">Жанри задані в даних каталогу (TMDB) і однакові для всіх мов сайту. Окремі тайтли можна приховати в розділі «Фільми і серіали».</p>';
-$$("[data-cg]",m).forEach(function(b){b.addEventListener("click",function(){FQ.g=b.dataset.cg;FQ.page=0;go("films")})})}).catch(function(e){m.innerHTML=errBox(e)})}
-
-/* ---------- Рекомендації ---------- */
-function recs(m){loadFlags().then(function(){
-m.innerHTML=head("Рекомендації","Блок «Рекомендації редакції» на головній сторінці. Порядок — як у списку.")
-+'<form class="tools" id="rf"><div class="grow"><label class="vh" for="ra">Тайтл</label><input class="in" id="ra" list="rl" placeholder="Почніть вводити назву, щоб додати…" autocomplete="off"><datalist id="rl">'+ALL.filter(function(x){return!isRec(x.id)}).map(function(x){return'<option value="'+esc(K.title(x,L)+" ("+x.y+")")+'"></option>'}).join("")+'</datalist></div><button class="btn">'+ic("plus",18)+'Додати</button></form>'
-+'<div class="tw"><table><thead><tr><th>#</th><th>Тайтл</th><th>Коментар</th><th>Додав</th><th>Статус</th><th class="vh">Дії</th></tr></thead><tbody>'
-+(RECS.length?RECS.map(function(r,i){var x=K.byId(r.title_id),h=FLAGS[r.title_id]&&FLAGS[r.title_id].hidden;return'<tr><td>'+(i+1)+'</td><td>'+(x?'<div class="tcell"><img class="poster" src="'+esc(x.poster)+'" alt="" width="40" height="60" loading="lazy"><div><b>'+esc(K.title(x,L))+'</b><small>'+TYN[x.ty]+' · '+x.y+'</small></div></div>':'<span class="badge b-bad">Тайтла немає в каталозі: '+esc(r.title_id)+'</span>')+'</td><td>'+esc(r.note||"—")+'</td><td>'+esc(r.created_by||"—")+'</td><td>'+(h?'<span class="badge b-off">Прихований — не показується</span>':'<span class="badge b-ok">Показується</span>')+'</td>'
-+'<td class="acts"><button type="button" class="ib" data-mv="'+r.id+'" data-d="-1" aria-label="Вище"'+(i?'':' disabled')+'>'+ic("up",17)+'</button><button type="button" class="ib" data-mv="'+r.id+'" data-d="1" aria-label="Нижче"'+(i<RECS.length-1?'':' disabled')+'>'+ic("down",17)+'</button>'+(x?'<button type="button" class="ib" data-ed="'+esc(r.title_id)+'" aria-label="Редагувати">'+ic("edit",17)+'</button>':'')+'<button type="button" class="ib dng" data-del="'+r.id+'" aria-label="Прибрати з рекомендацій">'+ic("trash",17)+'</button></td></tr>'}).join(""):'<tr><td colspan="6" class="empty">Рекомендацій ще немає — блок на головній не показується.</td></tr>')+'</tbody></table></div>';
-$("#rf").addEventListener("submit",function(e){e.preventDefault();var v=$("#ra").value.trim(),x=ALL.filter(function(t){return K.title(t,L)+" ("+t.y+")"===v||t.t===v||K.title(t,L)===v})[0];if(!x){toast("Оберіть тайтл зі списку.",true);return}if(isRec(x.id)){toast("Уже в рекомендаціях.",true);return}
-q(sb.from("recommendations").insert({title_id:x.id,position:RECS.length?Math.max.apply(null,RECS.map(function(r){return r.position}))+1:0})).then(function(){toast("Додано: "+K.title(x,L));go("recs")}).catch(fail)});
-$$("[data-del]",m).forEach(function(b){b.addEventListener("click",function(){q(sb.from("recommendations").delete().eq("id",+b.dataset.del)).then(function(){toast("Прибрано.");go("recs")}).catch(fail)})});
-$$("[data-ed]",m).forEach(function(b){b.addEventListener("click",function(){editTitle(b.dataset.ed);var t=setInterval(function(){if(!document.querySelector("dialog")){clearInterval(t);go("recs")}},300)})});
-$$("[data-mv]",m).forEach(function(b){b.addEventListener("click",function(){var i=RECS.findIndex(function(r){return r.id===+b.dataset.mv}),j=i+ +b.dataset.d;if(j<0||j>=RECS.length)return;var a=RECS.slice();var t=a[i];a[i]=a[j];a[j]=t;
-Promise.all(a.map(function(r,k){return r.position===k?null:q(sb.from("recommendations").update({position:k}).eq("id",r.id))})).then(function(){go("recs")}).catch(fail)})})}).catch(function(e){m.innerHTML=errBox(e)})}
+/* ---------- Каталог (CMS): фільми й серіали, жанри, головна й підбірки — js/admin-cms.js ---------- */
+var CMS=null;function cms(){if(!CMS)CMS=window.KUA_CMS({sb:sb,$:$,$$:$$,ic:ic,esc:esc,toast:toast,fail:fail,q:q,confirmDlg:confirmDlg,shut:shut,go:go,head:head,sel:sel,pager:pager,errBox:errBox,nf:nf,ME:ME});return CMS}
+function films(m){cms().list(m)}function cats(m){cms().genres(m)}function recs(m){cms().blocks(m)}
+function sel(id,lab,opts,v){return'<label class="vh" for="'+id+'">'+lab+'</label><select class="sel" id="'+id+'">'+opts.map(function(o){return'<option value="'+esc(o[0])+'"'+(String(o[0])===String(v)?' selected':'')+'>'+esc(o[1])+'</option>'}).join("")+'</select>'}
 
 /* ---------- Статистика ---------- */
 function stats(m){q(sb.rpc("admin_stats",{p_days:DAYS})).then(function(s){
-var tops=(s.top_titles||[]).map(function(t){var x=K.byId(t.title_id);return[x?K.title(x,L):t.title_id,t.views]});
-var byType=["films","cartoons","series"].map(function(t){return[TYN[t]+"и",ALL.filter(function(x){return x.ty===t}).length]});byType[2][0]="Серіали";
+var tops=(s.top_titles||[]).map(function(t){return[t.title||t.title_id,t.views]}),cat=s.catalog||{};
+var byType=[["Фільми",cat.films||0],["Мультфільми",cat.cartoons||0],["Серіали",cat.series||0]];
 var lc={};ALL.forEach(function(x){if(x.ol)lc[x.ol]=(lc[x.ol]||0)+1});var byLang=Object.keys(lc).sort(function(a,b){return lc[b]-lc[a]}).map(function(k){return[LN[k]||k,lc[k]]});
 var prov=Object.keys(s.providers||{}).map(function(k){return[k==="google"?"Google":k,s.providers[k]]});
 m.innerHTML=head("Статистика","Лише реально зібрані дані: Supabase Auth, облік переглядів на сайті й каталог.",period())
 +'<section class="card" style="margin-bottom:16px"><div class="chead"><h2>Активність за '+s.days+' дн.</h2>'+legend(AK)+'</div>'+chart(s.series||[],AK)+'</section>'
-+'<div class="g2e"><section class="card"><h2>Найпопулярніші сторінки тайтлів</h2>'+bars(tops)+'<p class="note">Перегляди сторінок фільмів за період: '+nf(s.views_period)+' (усього: '+nf(s.views_total)+(s.views_since?', облік з '+d2(s.views_since):'')+'). Один перегляд на тайтл за сесію браузера.</p></section>'
-+'<section class="card"><h2>Користувачі</h2><dl class="kv"><dt>Усього</dt><dd>'+nf(s.users_total)+'</dd><dt>Нових за 7 днів</dt><dd>'+nf(s.users_new_7d)+'</dd><dt>Входили за період</dt><dd>'+nf(s.users_active_period)+'</dd></dl><h3 style="margin-top:16px">Спосіб входу</h3>'+bars(prov)+'</section>'
-+'<section class="card"><h2>Каталог за типом</h2>'+bars(byType)+'</section><section class="card"><h2>Мова оригіналу</h2>'+bars(byLang)+'</section></div>'
++'<div class="g2e"><section class="card"><h2>Найпопулярніші сторінки тайтлів</h2>'+bars(tops)+'<p class="note">Перегляди сторінок фільмів за період: '+nf(s.views_period)+' (усього: '+nf(s.views_total)+(s.views_since?', облік з '+d2(s.views_since):'')+'), унікальних відвідувачів: '+nf(s.visitors_period)+'. Повтор того самого відвідувача зараховується не частіше разу на 30 хв; з однієї IP — не більше 20 на тайтл і 200 загалом за годину.</p></section>'
++'<section class="card"><h2>Користувачі</h2><dl class="kv"><dt>Усього</dt><dd>'+nf(s.users_total)+'</dd><dt>Нових за 7 днів</dt><dd>'+nf(s.users_new_7d)+'</dd><dt>Входили за період</dt><dd>'+nf(s.users_active_period)+'</dd><dt>Входів (сесій) за період</dt><dd>'+nf(s.logins_period)+'</dd></dl><h3 style="margin-top:16px">Спосіб входу</h3>'+bars(prov)+'</section>'
++'<section class="card"><h2>Каталог за типом</h2>'+bars(byType)+'<p class="note">Без кошика. Опубліковано: '+nf(cat.visible)+', чернеток: '+nf(cat.drafts)+'.</p></section><section class="card"><h2>Мова оригіналу</h2>'+bars(byLang)+'</section></div>'
 +'<section class="card" style="margin-top:16px"><h2>Журнал дій адміністраторів</h2>'+((s.last_audit||[]).length?'<div class="tw"><table><thead><tr><th>Коли</th><th>Хто</th><th>Дія</th><th>Об’єкт</th></tr></thead><tbody>'+s.last_audit.map(function(a){return'<tr><td class="nw">'+rel(a.at)+'</td><td>'+esc(a.actor_email||"—")+'</td><td>'+esc(AUD[a.action]||a.action)+'</td><td>'+esc(a.target||"")+'</td></tr>'}).join("")+'</tbody></table></div>':'<p class="empty">Дій ще не було.</p>')+'</section>';
 bindPeriod()}).catch(function(e){m.innerHTML=errBox(e)})}
-var AUD={"admin_users.insert":"Призначено адміністратора","admin_users.delete":"Знято адміністратора","title_flags.insert":"Змінено показ тайтла","title_flags.update":"Змінено показ тайтла","title_flags.delete":"Скинуто показ тайтла","recommendations.insert":"Додано рекомендацію","recommendations.update":"Змінено рекомендацію","recommendations.delete":"Прибрано рекомендацію","site_settings.insert":"Змінено налаштування","site_settings.update":"Змінено налаштування"};
+var AUD={"content.insert":"Створено тайтл","content.update":"Змінено тайтл","content.delete":"Видалено тайтл назавжди","genres.insert":"Створено жанр","genres.update":"Змінено жанр","genres.delete":"Видалено жанр","categories.insert":"Створено блок","categories.update":"Змінено блок","categories.delete":"Видалено блок","admin_users.insert":"Призначено адміністратора","admin_users.delete":"Знято адміністратора","title_flags.insert":"Змінено показ тайтла","title_flags.update":"Змінено показ тайтла","title_flags.delete":"Скинуто показ тайтла","recommendations.insert":"Додано рекомендацію","recommendations.update":"Змінено рекомендацію","recommendations.delete":"Прибрано рекомендацію","site_settings.insert":"Змінено налаштування","site_settings.update":"Змінено налаштування"};
 
 /* ---------- Налаштування ---------- */
 var TAB="gen";
@@ -210,9 +159,9 @@ if(TAB==="gen"){p.innerHTML='<h2>Оголошення на сайті</h2><form 
 $("#sf").addEventListener("submit",function(e){e.preventDefault();var t=$("#st").value.trim();if(t&&!/^https:\/\/t\.me\/[\w+/-]+$/.test(t)){toast("Посилання має бути у форматі https://t.me/…",true);return}
 var a={uk:$("#sa_uk").value.trim(),ru:$("#sa_ru").value.trim(),en:$("#sa_en").value.trim()},o=$("#so").checked;if(o&&!a.uk){toast("Додайте текст українською, щоб увімкнути оголошення.",true);return}
 q(sb.from("site_settings").upsert([{key:"announcement",value:a},{key:"announcement_enabled",value:o},{key:"support_telegram_url",value:t}])).then(function(){toast("Налаштування збережено. Відвідувачі побачать зміни після оновлення сторінки.");go("set")}).catch(fail)})}
-else if(TAB==="api"){var tm=ALL.filter(function(x){return x.tmdb}).length,im=ALL.filter(function(x){return x.imdb}).length,ir=ALL.filter(function(x){return K.rating(x,"IMDb")}).length,tr=ALL.filter(function(x){return x.trailer}).length;
-p.innerHTML='<h2>Джерела даних</h2><dl class="kv"><dt>Каталог</dt><dd>'+ALL.length+' тайтлів · TMDB (знімок 18.10.2026), файли js/catalog.js і data/titles/</dd><dt>TMDB ID</dt><dd>'+tm+' з '+ALL.length+'</dd><dt>IMDb ID / оцінки</dt><dd>'+im+' / '+ir+' (офіційний набір IMDb, 19.10.2026)</dd><dt>Трейлери YouTube</dt><dd>'+tr+'</dd><dt>Supabase</dt><dd>'+esc((window.KUA_CONFIG.supabase||{}).url||"—")+'</dd><dt>Ключ у браузері</dt><dd>лише публічний (publishable)</dd><dt>Вхід</dt><dd>Google OAuth через Supabase Auth</dd></dl><p class="note">Оновлення каталогу — скриптами в репозиторії; з панелі можна лише приховувати тайтли й вести рекомендації.</p>'}
-else{p.innerHTML='<h2>Безпека</h2><dl class="kv"><dt>Ваша роль</dt><dd>'+esc(RN[ME.role])+' (визначає сервер)</dd><dt>Перевірка прав</dt><dd>Функція admin_role() у базі: роль за підтвердженим email з auth.users, а не з браузера</dd><dt>Таблиці</dt><dd>Row Level Security на всіх: admin_users, title_flags, recommendations, site_settings, title_views, admin_audit</dd><dt>Головний адміністратор</dt><dd>Один; його запис не можна змінити чи видалити через API</dd><dt>Журнал</dt><dd>Кожна зміна записується тригером у admin_audit</dd><dt>Секрети</dt><dd>service_role і Google Client Secret не використовуються в коді сайту</dd></dl>'}}
+else if(TAB==="api"){var tm=ALL.filter(function(x){return x.tmdb_id}).length,im=ALL.filter(function(x){return x.imdb_id}).length,ir=ALL.filter(function(x){return x.rating_imdb!=null}).length,tr=ALL.filter(function(x){return x.trailer_yt}).length;
+p.innerHTML='<h2>Джерела даних</h2><dl class="kv"><dt>Каталог</dt><dd>'+ALL.length+' тайтлів у базі Supabase (без кошика) — єдине джерело для сайту й панелі</dd><dt>Початковий імпорт</dt><dd>TMDB (знімок 18.10.2026) + оцінки IMDb (19.10.2026), tools/seed/</dd><dt>TMDB ID</dt><dd>'+tm+'</dd><dt>IMDb ID / оцінки</dt><dd>'+im+' / '+ir+'</dd><dt>Трейлери YouTube</dt><dd>'+tr+'</dd><dt>Зображення</dt><dd>Нові — Supabase Storage (бакет media); імпортовані — файли сайту assets/</dd><dt>Supabase</dt><dd>'+esc((window.KUA_CONFIG.supabase||{}).url||"—")+'</dd><dt>Ключ у браузері</dt><dd>лише публічний (publishable)</dd><dt>Вхід</dt><dd>Google OAuth через Supabase Auth</dd></dl>'}
+else{p.innerHTML='<h2>Безпека</h2><dl class="kv"><dt>Ваша роль</dt><dd>'+esc(RN[ME.role])+' (визначає сервер)</dd><dt>Перевірка прав</dt><dd>Функція admin_role() у базі: роль за підтвердженим email з auth.users, а не з браузера</dd><dt>Таблиці</dt><dd>Row Level Security на всіх: content, genres, seasons, episodes, video_sources, content_images, categories, category_items, admin_users, site_settings, title_views, login_events, admin_audit; сховище media — запис лише адміністраторам</dd><dt>Перегляди</dt><dd>Лише через функцію track_view: дедуплікація й ліміти, IP не зберігається (лише хеш із сіллю)</dd><dt>Головний адміністратор</dt><dd>Один; його запис не можна змінити чи видалити через API</dd><dt>Журнал</dt><dd>Кожна зміна записується тригером у admin_audit</dd><dt>Секрети</dt><dd>service_role і Google Client Secret не використовуються в коді сайту</dd></dl>'}}
 $$("[data-tab]",m).forEach(function(b){b.addEventListener("click",function(){TAB=b.dataset.tab;$$("[data-tab]",m).forEach(function(x){x.setAttribute("aria-selected",String(x===b))});pane()})});pane();services()}).catch(function(e){m.innerHTML=errBox(e)})}
 function services(){var C=window.KUA_CONFIG.supabase,list=[["Supabase Auth",function(){return fetch(C.url+"/auth/v1/health",{headers:{apikey:C.publishableKey}}).then(function(r){return r.ok})}],
 ["Google OAuth",function(){return fetch(C.url+"/auth/v1/settings",{headers:{apikey:C.publishableKey}}).then(function(r){return r.json()}).then(function(j){return!!(j.external&&j.external.google)})}],
@@ -228,7 +177,7 @@ function start(){if(A.problem){gate('<span class="big">'+ic("lock",34)+'</span><
 A.check().then(function(r){if(!r.user){gate('<span class="big">'+ic("lock",34)+'</span><h1>Увійдіть, щоб продовжити</h1><p>Адмін-панель доступна лише адміністраторам KinoUA.</p><a class="btn" href="profile.html">Увійти через Google</a>');return}
 ME.user=r.user;return q(sb.rpc("admin_whoami")).then(function(w){ME.email=w&&w.email||r.user.email;ME.role=w&&w.role;
 if(!ME.role){gate('<span class="big">'+ic("shield",34)+'</span><h1>Немає доступу</h1><p>Акаунт <b>'+esc(ME.email)+'</b> не має прав адміністратора.<br>Права перевіряє сервер, тому змінити це з браузера неможливо.</p><a class="btn sec" href="index.html">На сайт</a>');return}
-shell();var h=location.hash.slice(1);go(NAV.some(function(n){return n[0]===h})?h:"home",true)})}).catch(function(e){gate('<span class="big">'+ic("x",34)+'</span><h1>Не вдалося перевірити доступ</h1><p>'+esc(String(e&&e.message||e))+'</p><button class="btn" onclick="location.reload()">Спробувати ще раз</button>')})}
+shell();var h=location.hash.slice(1);return q(sb.from("content").select("slug,ty,title_uk,title_orig,orig_lang,rating_imdb,trailer_yt,imdb_id,tmdb_id,poster").is("deleted_at",null)).catch(function(){return[]}).then(function(rows){ALL=rows;if(/^edit\//.test(h))edit(h.slice(5));else go(NAV.some(function(n){return n[0]===h})?h:"home",true)})})}).catch(function(e){gate('<span class="big">'+ic("x",34)+'</span><h1>Не вдалося перевірити доступ</h1><p>'+esc(String(e&&e.message||e))+'</p><button class="btn" onclick="location.reload()">Спробувати ще раз</button>')})}
 if(A.client)A.onChange(function(ev){if(ev==="SIGNED_OUT")location.reload()});
 start();
 })();

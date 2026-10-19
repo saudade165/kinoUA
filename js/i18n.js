@@ -61,9 +61,11 @@ D.uk={
    "released": "Вийшов",
    "post-production": "Постпродакшн",
    "in-production": "У виробництві",
-   "planned": "Заплановано",
+   "planned": "Готується",
    "returning": "Виходить",
-   "ended": "Завершено"
+   "ended": "Завершено",
+   "upcoming": "Скоро вийде",
+   "paused": "Призупинено"
   },
   "sim": "Схожі фільми",
   "rat": "Оцінки",
@@ -137,7 +139,12 @@ D.uk={
   "ratSrc": "Оцінки: IMDb — з офіційного набору даних IMDb (19.10.2026), TMDB — знімок 18.10.2026. Це різні сервіси, оцінки не змішуються.",
   "ids": "Зовнішні бази",
   "srt": "Оцінкою TMDB",
-  "trlNo": "Офіційного трейлера немає"
+  "trlNo": "Офіційного трейлера немає",
+  "play": "Дивитися",
+  "watchEp": "Дивитися серію",
+  "epSoon": "Серія ще не вийшла.",
+  "srcL": "Джерело відео",
+  "srcNote": "Відео відтворюється з джерела, яке додали адміністратори KinoUA."
  },
  "app_ct": {
   "films": "Фільми",
@@ -330,7 +337,10 @@ D.uk={
   "swipe": "Гортайте вбік, щоб перемикати",
   "picksEy": "Обирає редакція",
   "picksH": "Рекомендації редакції",
-  "picksL": "Добірку оновлюють адміністратори KinoUA."
+  "picksL": "Добірку оновлюють адміністратори KinoUA.",
+  "upEy": "Календар прем’єр",
+  "upH": "Скоро вийде",
+  "upL": "Тайтли з датою прем’єри в майбутньому."
  },
  "nav": {
   "films": "Фільми",
@@ -545,9 +555,11 @@ D.ru={
    "released": "Вышел",
    "post-production": "Постпродакшн",
    "in-production": "В производстве",
-   "planned": "Запланировано",
+   "planned": "Готовится",
    "returning": "Выходит",
-   "ended": "Завершён"
+   "ended": "Завершён",
+   "upcoming": "Скоро выйдет",
+   "paused": "Приостановлен"
   },
   "sim": "Похожие фильмы",
   "rat": "Оценки",
@@ -621,7 +633,12 @@ D.ru={
   "ratSrc": "Оценки: IMDb — из официального набора данных IMDb (19.10.2026), TMDB — снимок 18.10.2026. Это разные сервисы, оценки не смешиваются.",
   "ids": "Внешние базы",
   "srt": "Оценкой TMDB",
-  "trlNo": "Официального трейлера нет"
+  "trlNo": "Официального трейлера нет",
+  "play": "Смотреть",
+  "watchEp": "Смотреть серию",
+  "epSoon": "Серия ещё не вышла.",
+  "srcL": "Источник видео",
+  "srcNote": "Видео воспроизводится из источника, добавленного администраторами KinoUA."
  },
  "app_ct": {
   "films": "Фильмы",
@@ -814,7 +831,10 @@ D.ru={
   "swipe": "Листайте в сторону для переключения",
   "picksEy": "Выбирает редакция",
   "picksH": "Рекомендации редакции",
-  "picksL": "Подборку обновляют администраторы KinoUA."
+  "picksL": "Подборку обновляют администраторы KinoUA.",
+  "upEy": "Календарь премьер",
+  "upH": "Скоро выйдет",
+  "upL": "Тайтлы с датой премьеры в будущем."
  },
  "nav": {
   "films": "Фильмы",
@@ -1031,7 +1051,9 @@ D.en={
    "in-production": "In production",
    "planned": "Planned",
    "returning": "Returning series",
-   "ended": "Ended"
+   "ended": "Ended",
+   "upcoming": "Coming soon",
+   "paused": "On hold"
   },
   "sim": "Similar movies",
   "rat": "Ratings",
@@ -1105,7 +1127,12 @@ D.en={
   "ratSrc": "Ratings: IMDb from the official IMDb dataset (19 Oct 2026), TMDB snapshot of 18 Oct 2026. They are separate services; scores are never mixed.",
   "ids": "External databases",
   "srt": "TMDB rating",
-  "trlNo": "No official trailer"
+  "trlNo": "No official trailer",
+  "play": "Watch",
+  "watchEp": "Watch episode",
+  "epSoon": "This episode hasn’t aired yet.",
+  "srcL": "Video source",
+  "srcNote": "The video plays from a source added by KinoUA admins."
  },
  "app_ct": {
   "films": "Movies",
@@ -1298,7 +1325,10 @@ D.en={
   "swipe": "Swipe sideways to switch",
   "picksEy": "Editor’s choice",
   "picksH": "Editor’s picks",
-  "picksL": "Curated by the KinoUA team."
+  "picksL": "Curated by the KinoUA team.",
+  "upEy": "Release calendar",
+  "upH": "Coming soon",
+  "upL": "Titles with a future release date."
  },
  "nav": {
   "films": "Movies",

@@ -87,9 +87,12 @@ if(/access_denied/i.test(c+" "+m))return{msg:t("errDenied"),det:""};if(/fetch|ne
 // Перевірка сесії: при першому відкритті, після повернення з Google і після перезавантаження сторінки
 function refresh(){if(!A.client){AUTH.st="out";render();return}
 var ue=A.urlError();
-A.check().then(function(r){AUTH.user=r.user;AUTH.st=r.user?"in":"out";AUTH.err=ue?(ue.code==="access_denied"?{msg:t("errDenied"),det:""}:{msg:t("errGen"),det:[ue.ecode||ue.code,ue.desc].filter(Boolean).join(": ")}):(r.err&&!r.user?errOf(r.err):null)})
+A.check().then(function(r){AUTH.user=r.user;AUTH.st=r.user?"in":"out";
+// журнал входів: сервер записує одну подію на справжню сесію (перевіряє її в auth.sessions)
+if(r.user)A.client.rpc("record_login").then(function(){},function(){});AUTH.err=ue?(ue.code==="access_denied"?{msg:t("errDenied"),det:""}:{msg:t("errGen"),det:[ue.ecode||ue.code,ue.desc].filter(Boolean).join(": ")}):(r.err&&!r.user?errOf(r.err):null)})
 .catch(function(e){AUTH.st="out";AUTH.user=null;AUTH.err=errOf(e)})
 .then(function(){A.cleanUrl();render()})}
-render();
+KUA_READY.then(function(){render();
 if(A.client){refresh();A.onChange(function(ev){if(ev==="SIGNED_OUT"){AUTH={st:"out",user:null,err:AUTH.err};render()}else refresh()})}
+});
 })();

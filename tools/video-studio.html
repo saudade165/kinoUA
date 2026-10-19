@@ -7,7 +7,7 @@
 Не підключений до сайту. Голоси: <code>tools/voice/*.wav</code> (macOS <code>say</code>).</p>
 <button id="b1">Сцена (24 с)</button><button id="b2">Демо (50 с)</button><button id="pv">Перегляд кадру</button><input id="pt" type="number" value="20" step="0.5" style="width:70px">
 <pre id="log"></pre><canvas id="cv" width="1280" height="720"></canvas>
-<script src="../js/data.js"></script><script src="../js/catalog.js"></script><script>window.KUA={}</script><script src="../js/art.js"></script>
+<script>window.KUA={}</script><script src="../js/art.js"></script>
 <script src="vendor/mp4-muxer.js"></script>
 <script>
 "use strict";
@@ -43,7 +43,7 @@ GRAIN=document.createElement("canvas");GRAIN.width=GRAIN.height=256;const g=GRAI
 for(let i=0;i<id.data.length;i+=4){const v=rr2()*255;id.data[i]=id.data[i+1]=id.data[i+2]=v;id.data[i+3]=255}g.putImageData(id,0,0)}
 async function svgBitmap(svg,w,h){const img=new Image();img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);await img.decode();const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d");x.drawImage(img,0,0,w,h);return c}
 // Справжні тайтли каталогу (постери TMDB з assets/posters). На сайті для них доступні опис і трейлер, тому підпис — «Трейлер».
-async function makePosters(){for(const id of["dune-part-two-2024","interstellar-2014","coco-2017","the-wild-robot-2024","spider-man-across-the-spider-verse-2023"]){const m=MOVIES.find(x=>x.id===id),img=new Image();await new Promise((ok,no)=>{img.onload=ok;img.onerror=()=>no(new Error("poster "+id));img.src="../"+m.poster});const c=document.createElement("canvas");c.width=400;c.height=600;c.getContext("2d").drawImage(img,0,0,400,600);POSTERS.push({t:m.n.uk||m.t,c})}
+async function makePosters(){if(!window.MOVIES)window.MOVIES=(await (await fetch("seed/kinoua-catalog-seed.json")).json()).titles;for(const id of["dune-part-two-2024","interstellar-2014","coco-2017","the-wild-robot-2024","spider-man-across-the-spider-verse-2023"]){const m=MOVIES.find(x=>x.id===id),img=new Image();await new Promise((ok,no)=>{img.onload=ok;img.onerror=()=>no(new Error("poster "+id));img.src="../"+m.poster});const c=document.createElement("canvas");c.width=400;c.height=600;c.getContext("2d").drawImage(img,0,0,400,600);POSTERS.push({t:m.n.uk||m.t,c})}
 LH_POSTER=document.createElement("canvas");LH_POSTER.width=400;LH_POSTER.height=600;const p=LH_POSTER.getContext("2d");p.save();p.translate(-640,-30);p.scale(1.15,1.15);drawScene(p,8.5,{noGrain:true});p.restore();
 const gr=p.createLinearGradient(0,330,0,600);gr.addColorStop(0,"rgba(0,0,0,0)");gr.addColorStop(1,"rgba(0,0,0,.8)");p.fillStyle=gr;p.fillRect(0,0,400,600);
 p.fillStyle="#fff";p.font="700 64px Inter";p.textAlign="center";p.fillText("МАЯК",200,540);

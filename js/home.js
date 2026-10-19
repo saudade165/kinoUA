@@ -1,9 +1,15 @@
-// Головна сторінка KinoUA
-(function(){
+// Головна сторінка KinoUA. Дані — з Supabase (js/store.js); блоки, їхній порядок і баннер налаштовуються в адмін-панелі.
+KUA_READY.then(function(){
 var K=window.KUA,esc=K.esc,N=K.N,L=K.lang(),D=KUA_I18N.dict("home"),RM=matchMedia("(prefers-reduced-motion: reduce)");
 function t(k){return D[k][L]}function $(s){return document.querySelector(s)}function q(s){return document.querySelectorAll(s)}
 var ALL=MOVIES.slice(),pop=function(a,b){return(a.pop||9999)-(b.pop||9999)||a.rank-b.rank};
-var FILMS=ALL.filter(function(m){return m.ty==="films"&&m.tmdb}).sort(pop),CARTS=ALL.filter(function(m){return m.ty==="cartoons"&&m.tmdb}).sort(pop),SER=ALL.filter(function(m){return m.ty==="series"}).sort(pop);
+var FILMS=ALL.filter(function(m){return m.ty==="films"}).sort(pop),CARTS=ALL.filter(function(m){return m.ty==="cartoons"}).sort(pop),SER=ALL.filter(function(m){return m.ty==="series"}).sort(pop);
+// Блоки головної з бази: {slug:{kind,title,max,items}}. Відсутній блок = вимкнений в адмін-панелі.
+var BL={},BORD=[];((window.KUA_SITE&&KUA_SITE.blocks)||[]).forEach(function(b){BL[b.slug]=b;BORD.push(b.slug)});
+function bmax(slug,d){return BL[slug]&&BL[slug].max||d}
+function bitems(slug){return((BL[slug]&&BL[slug].items)||[]).map(function(x){return{m:K.byId(x.id),n:x.note}}).filter(function(x){return x.m})}
+// «Популярне» — лише тайтли з реальною позицією в TMDB Popular (знімок), без випадкових
+var POP=FILMS.filter(function(m){return m.pop});
 var I={play:'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 4.5v15l12-7.5z"/></svg>',
 prev:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>',next:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>'};
 function meta(m){return[m.y,K.genres(m,L),m.ty==="series"&&m.sc?K.seasons(m.sc,L):(m.m?m.m+" "+t("min"):null),m.cert?m.cert.v:null].filter(Boolean).join(" · ")}
@@ -15,7 +21,8 @@ function sdP(m,cls){var s=K.short(m,L);return s?'<p class="'+cls+'"'+(s.lang!==N
 /* ---------- 1. Головний банер ---------- */
 var hero={i:0,ids:[]};
 function heroBuild(){var pick=[],add=function(m){if(m&&m.backdrop&&m.trailer&&pick.indexOf(m)<0&&K.released(m))pick.push(m)};
-FILMS.slice(0,8).forEach(function(m){if(pick.length<3)add(m)});add(CARTS[0]);add(SER[0]);hero.ids=pick.map(function(m){return m.id});
+var hb=bitems("hero");if(hb.length)hb.slice(0,bmax("hero",6)).forEach(function(x){if(x.m.backdrop&&pick.indexOf(x.m)<0)pick.push(x.m)});
+if(!pick.length){POP.slice(0,8).forEach(function(m){if(pick.length<3)add(m)});add(CARTS[0]);add(SER[0])}hero.ids=pick.map(function(m){return m.id});
 var el=$("#hero"),n=pick.length;el.setAttribute("aria-label",t("heroL"));
 el.innerHTML='<div class="hstage">'+pick.map(function(m,j){var tt=K.title(m,L);return'<article class="hslide'+(j===hero.i?' on':'')+'" aria-roledescription="slide" aria-label="'+(j+1)+' '+t("of")+' '+n+': '+esc(tt)+'"'+(j===hero.i?'':' inert aria-hidden="true"')+'>'
 +'<div class="hmedia"><img class="hbg" src="'+m.backdrop+'" alt="" width="1280" height="720"'+(j===0?' fetchpriority="high"':' loading="lazy"')+' decoding="async" onerror="this.remove()"></div><div class="wrap hin"><p class="eyebrow light">'+t("k_"+m.ty)+' · '+t("heroPop")+'</p><h2 class="htitle">'+esc(tt)+'</h2>'+(tt!==m.t?'<p class="hot" lang="en">'+esc(m.t)+'</p>':'')
@@ -49,7 +56,7 @@ $("#stats").innerHTML=it.map(function(x){return'<div class="stat"><b>'+x[0]+'</b
 
 /* ---------- 3. Популярні фільми: безшовна стрічка (друга копія прихована від читачів і клавіатури) ---------- */
 var mq={pos:0,w:0,raf:0,last:0,hover:false,focus:false,user:false,drag:null,target:null};
-function mqBuild(){var tr=$("#mqt"),cards=FILMS.map(function(m){return K.card(m,L)});
+function mqBuild(){var tr=$("#mqt"),cards=POP.slice(0,bmax("popular",100)).map(function(m){return K.card(m,L)});
 tr.innerHTML='<div class="mq-set" role="list">'+cards.map(function(c){return'<div role="listitem">'+c+'</div>'}).join("")+'</div><div class="mq-set" aria-hidden="true" inert>'+cards.join("")+'</div>';
 tr.querySelectorAll('[aria-hidden="true"] a').forEach(function(a){a.tabIndex=-1});mqMeasure();mqLabels();if(!mq.raf)mq.raf=requestAnimationFrame(mqTick)}
 function mqMeasure(){var s=q("#mqt .mq-set");if(s.length<2)return;mq.w=s[1].offsetLeft-s[0].offsetLeft;mq.pos=((mq.pos%mq.w)+mq.w)%mq.w}
@@ -77,13 +84,13 @@ addEventListener("resize",mqMeasure);document.addEventListener("visibilitychange
 /* ---------- 4. Мультфільми: великий банер + стрічка ---------- */
 function cartBuild(){var f=CARTS[0];$("#cartFeat").innerHTML='<article class="bigcard"><img src="'+f.backdrop+'" alt="" width="1280" height="720" loading="lazy" decoding="async" onerror="this.remove()"><div class="bc-in"><p class="eyebrow light">'+t("cartTop")+'</p><h3>'+esc(K.title(f,L))+'</h3><p class="hmeta">'+rate(f)+'<span>'+esc(meta(f))+'</span></p>'+sdP(f,"bc-d")+'<div class="acts"><button type="button" class="btn" data-tr="'+f.id+'">'+I.play+t("trailer")+'</button><a class="btn secondary" href="movie.html?id='+f.id+'">'+t("more")+'<span class="vh">: '+esc(K.title(f,L))+'</span></a></div></div></article>';
 var cb=$("#cartFeat [data-tr]");cb.addEventListener("click",function(){K.trailer(f,L,cb)});
-$("#cartRail").innerHTML=K.rail("cartr",CARTS.slice(1).map(function(m){return K.card(m,L)}).join(""),L,t("cartH"));K.railInit($("#cartr"))}
+$("#cartRail").innerHTML=K.rail("cartr",CARTS.slice(1,bmax("cartoons",30)).map(function(m){return K.card(m,L)}).join(""),L,t("cartH"));K.railInit($("#cartr"))}
 
 /* ---------- 5. Серіали: широкі картки з кадрами ---------- */
-function serBuild(){$("#sgrid").innerHTML=SER.map(function(m,i){var tt=K.title(m,L),r=(m.ratings||[])[0],s=K.short(m,L);return'<a class="scard'+(i===0?' wide':'')+'" href="movie.html?id='+m.id+'"><img src="'+m.backdrop+'" alt="" width="1280" height="720" loading="lazy" decoding="async" onerror="this.remove()"><span class="sc-in"><span class="sc-tag">'+K.seasons(m.sc,L)+' · '+m.ec+' '+t("eps")+'</span><b>'+esc(tt)+'</b>'+(tt!==m.t?'<small lang="en">'+esc(m.t)+'</small>':'')+'<span class="sc-m">'+(r?'<span class="star">'+K.STAR+r.v.toFixed(1)+' <i class="rsrc">'+r.src+'</i></span>':'')+esc(K.genres(m,L))+'</span>'+(s?'<span class="sc-d"'+(s.lang!==N[L]?' lang="en"':'')+'>'+esc(s.v)+'</span>':'')+'</span></a>'}).join("")}
+function serBuild(){$("#sgrid").innerHTML=SER.slice(0,bmax("series",10)).map(function(m,i){var tt=K.title(m,L),r=(m.ratings||[])[0],s=K.short(m,L);return'<a class="scard'+(i===0?' wide':'')+'" href="movie.html?id='+m.id+'"><img src="'+m.backdrop+'" alt="" width="1280" height="720" loading="lazy" decoding="async" onerror="this.remove()"><span class="sc-in"><span class="sc-tag">'+K.seasons(m.sc,L)+' · '+m.ec+' '+t("eps")+'</span><b>'+esc(tt)+'</b>'+(tt!==m.t?'<small lang="en">'+esc(m.t)+'</small>':'')+'<span class="sc-m">'+(r?'<span class="star">'+K.STAR+r.v.toFixed(1)+' <i class="rsrc">'+r.src+'</i></span>':'')+esc(K.genres(m,L))+'</span>'+(s?'<span class="sc-d"'+(s.lang!==N[L]?' lang="en"':'')+'>'+esc(s.v)+'</span>':'')+'</span></a>'}).join("")}
 
 /* ---------- 6. Нещодавно вийшли ---------- */
-function newBuild(){var today=new Date().toISOString().slice(0,10);$("#row").innerHTML=ALL.filter(function(m){return m.date&&m.date<=today&&m.tmdb}).sort(function(a,b){return a.date<b.date?1:-1}).slice(0,6).map(function(m){return K.card(m,L)}).join("")}
+function newBuild(){var today=new Date().toISOString().slice(0,10);$("#row").innerHTML=ALL.filter(function(m){return m.date&&m.date<=today}).sort(function(a,b){return a.date<b.date?1:-1}).slice(0,bmax("new",6)).map(function(m){return K.card(m,L)}).join("")}
 
 /* ---------- 7. Переваги: кожна картка з реальним візуальним змістом ---------- */
 function bentoBuild(){var P=FILMS.slice(0,6),tr=FILMS.filter(function(m){return m.trailer&&m.backdrop})[3]||FILMS[0],S=window.KUA_SCENE;
@@ -112,9 +119,22 @@ $("#demoErr").innerHTML='<p>'+t("vErr")+'</p>'}
 (function(){var v=$("#demoVid");v.addEventListener("error",function(){$("#demoErr").hidden=false},true);v.querySelector("source").addEventListener("error",function(){$("#demoErr").hidden=false});
 v.addEventListener("timeupdate",function(){var c=-1;CH.forEach(function(x,i){if(v.currentTime>=x[0])c=i});q("#chapters button").forEach(function(b,i){if(i===c)b.setAttribute("aria-current","true");else b.removeAttribute("aria-current")})})})();
 
+/* ---------- Блоки з адмін-панелі: «Скоро вийде», власні підбірки, порядок і ввімкнення ---------- */
+function bt(b){var tt=b&&b.title||{};return tt[N[L]]||tt.uk||""}
+function upcomingBuild(){var sec=$("#upcoming");if(!sec)return;var today=new Date().toISOString().slice(0,10),ms=ALL.filter(function(m){return m.date&&m.date>today}).sort(function(a,b){return a.date<b.date?-1:1}).slice(0,bmax("upcoming",12));
+sec.hidden=!ms.length;if(!ms.length)return;$("#h-up").textContent=bt(BL.upcoming)||t("upH");$("#upr").innerHTML=K.rail("upk",ms.map(function(m){return K.card(m,L)}).join(""),L,$("#h-up").textContent);K.railInit($("#upk"))}
+function customBuild(){q(".cblock").forEach(function(x){x.remove()});BORD.forEach(function(slug){var b=BL[slug];if(b.kind!=="manual"||slug==="editors")return;var ms=bitems(slug).slice(0,b.max||20);if(!ms.length)return;
+var sec=document.createElement("section");sec.className="cblock reveal";sec.id="blk-"+slug;sec.setAttribute("aria-labelledby","h-"+slug);sec.innerHTML='<div class="shead"><div><p class="eyebrow">'+t("picksEy")+'</p><h2 id="h-'+slug+'">'+esc(bt(b))+'</h2></div></div><div id="r-'+slug+'"></div>';
+$(".home").appendChild(sec);$("#r-"+slug).innerHTML=K.rail("rk-"+slug,ms.map(function(x){return'<div class="wcw">'+K.card(x.m,L)+(x.n?'<p class="via">'+esc(x.n)+'</p>':'')+'</div>'}).join(""),L,bt(b));K.railInit($("#rk-"+slug))})}
+// Порядок і ввімкнення керованих розділів — як у адмін-панелі; вимкнені блоки приховуються
+function layout(){var map={editors:"#picks",popular:"#popular",cartoons:"#cartoons",series:"#series","new":"#new",upcoming:"#upcoming"},anchor=$("#features");if(!anchor)return;
+Object.keys(map).forEach(function(slug){var el=$(map[slug]);if(el&&!BL[slug])el.hidden=true});
+BORD.forEach(function(slug){var el=map[slug]?$(map[slug]):$("#blk-"+slug);if(el)anchor.parentNode.insertBefore(el,anchor)});
+if(BL.editors&&$("#h-picks")&&bt(BL.editors))$("#h-picks").textContent=bt(BL.editors)}
+
 /* ---------- 9. Кроки, фінальний блок ---------- */
 /* ---------- Рекомендації редакції (керуються в адмін-панелі; показуються лише якщо є) ---------- */
-function picksBuild(){var R=(window.KUA_SITE&&KUA_SITE.recs)||[],sec=$("#picks");if(!sec)return;var ms=R.map(function(r){return{m:K.byId(r.id),n:r.note}}).filter(function(x){return x.m});
+function picksBuild(){var sec=$("#picks");if(!sec)return;var ms=bitems("editors").slice(0,bmax("editors",20));
 sec.hidden=!ms.length;if(!ms.length)return;$("#picksr").innerHTML=K.rail("pkr",ms.map(function(x){return'<div class="wcw">'+K.card(x.m,L)+(x.n?'<p class="via">'+esc(x.n)+'</p>':'')+'</div>'}).join(""),L,t("picksH"));K.railInit($("#pkr"))}
 function stepsBuild(){var P=FILMS.slice(6,9);$("#steps").innerHTML=
 '<li><span class="sv sv1" aria-hidden="true">'+P.map(function(m){return'<img src="'+m.poster+'" alt="" width="500" height="750" loading="lazy">'}).join("")+'</span><b>1</b><h3>'+t("s1t")+'</h3><p>'+t("s1p")+'</p></li>'
@@ -126,7 +146,7 @@ function apply(){document.documentElement.lang=N[L];document.title=t("ti");
 q("[data-i]").forEach(function(e){e.innerHTML=t(e.dataset.i)});q("[data-ia]").forEach(function(e){e.setAttribute("aria-label",t(e.dataset.ia))});
 q("[data-i-list]").forEach(function(e){e.innerHTML=e.dataset.iList.split(" ").map(function(k){return'<span>'+t(k)+'</span>'}).join("")});
 K.header($("#hd"),L,function(i){L=i;apply()});K.footer($("#ft"),L);
-heroBuild();dualBuild();stats();mqBuild();cartBuild();serBuild();newBuild();bentoBuild();demoBuild();stepsBuild();picksBuild();
+heroBuild();dualBuild();stats();mqBuild();cartBuild();serBuild();newBuild();bentoBuild();demoBuild();stepsBuild();picksBuild();upcomingBuild();customBuild();layout();
 var a6=q('[data-i="a6"]')[0];if(a6)a6.insertAdjacentHTML("beforeend",' '+K.support(L));K.reveal()}
 apply();
-})();
+});

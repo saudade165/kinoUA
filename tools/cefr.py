@@ -5,7 +5,7 @@
 
 Використання:
   python3 tools/cefr.py субтитри.en.vtt [ще.srt ...]        → звіт і JSON із рівнем
-  python3 tools/cefr.py --json субтитри.en.vtt              → лише JSON (для data/titles/*.js → поле "lvl")
+  python3 tools/cefr.py --json субтитри.en.vtt              → лише JSON (поле content.lvl у Supabase)
 
 Частотний список англійських слів (20 000 найуживаніших) завантажується один раз у tools/.cache/:
 first20hours/google-10000-english (Google Web Trillion Word Corpus; освітнє й дослідницьке використання).

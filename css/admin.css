@@ -166,3 +166,45 @@ main{padding:20px 16px 40px}
 .frow{grid-template-columns:1fr;gap:6px}.frow>label,.frow>span{padding-top:0}}
 @media(max-width:560px){.stats{grid-template-columns:1fr}.who b{max-width:150px}.stat b{font-size:26px}.kv{grid-template-columns:1fr}.bar{grid-template-columns:minmax(80px,120px) 1fr auto}}
 @media(prefers-reduced-motion:reduce){.spin{animation:none}.side{transition:none}}
+/* 5.0: CMS — список, редактор, медіа, сезони */
+.bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;margin-bottom:12px;border:1px solid var(--ac);border-radius:12px;background:var(--acbg)}
+.bulk b{margin-right:6px}
+.tabs small{opacity:.75;margin-left:2px}
+.edgrid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start;padding-bottom:84px}
+.edside{position:sticky;top:90px}
+.svst{color:var(--ok);font-size:13px;margin-left:6px}.svst.warn{color:var(--warn)}
+.req{color:var(--bad)}
+.edbar{position:fixed;left:264px;right:0;bottom:0;z-index:20;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding:12px 32px;background:rgba(14,16,22,.94);border-top:1px solid var(--line);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.slugrow{display:flex;gap:8px;flex-wrap:wrap}.slugrow>.in{flex:1 1 140px}
+.chipc{position:relative;display:inline-flex}
+.chipc input{position:absolute;opacity:0;width:1px;height:1px}
+.chipc span{display:inline-flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--panel-2);cursor:pointer;font-size:14px}
+.chipc input:checked+span{background:var(--acbg);border-color:var(--ac);color:#fff}
+.chipc input:focus-visible+span{outline:3px solid #B9A5FF;outline-offset:2px}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.mslot{display:flex;flex-direction:column;gap:8px}
+.mprev{display:flex;align-items:center;justify-content:center;border:1px dashed var(--line-2);border-radius:12px;background:var(--panel-2);color:var(--mu);font-size:13px;overflow:hidden;text-align:center;padding:4px}
+.mprev img{width:100%;height:100%;object-fit:cover;display:block}
+.mprev.poster{aspect-ratio:2/3;max-width:180px}.mprev.backdrop,.mprev.banner{aspect-ratio:16/9}
+.prog{display:grid;gap:4px;font-size:13px;color:var(--mu)}.prog i{display:block;height:6px;border-radius:4px;background:linear-gradient(90deg,#6A4BEA,#9B7BFF);width:0;transition:width .2s}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.gal figure{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel-2)}
+.gal img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+.gal figcaption{display:flex;gap:6px;align-items:center;padding:6px}
+.gadd{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:120px;border:1px dashed var(--line-2);border-radius:12px;color:var(--mu);cursor:pointer}
+.gadd:hover{border-color:var(--ac);color:var(--tx)}
+.ng summary{cursor:pointer;color:var(--ac-t);margin-top:12px}
+.season{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px;background:var(--panel-2)}
+.season summary{cursor:pointer}
+dialog.wide{width:min(900px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto}
+.pv{display:flex;flex-direction:column;gap:4px}
+.pvp{position:relative;aspect-ratio:2/3;border-radius:14px;overflow:hidden;background:var(--panel-2);display:flex;align-items:center;justify-content:center;color:var(--mu);font-size:13px;margin-bottom:6px}
+.pvp img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.pvp i{position:absolute;left:8px;top:8px;font-style:normal;font-size:11px;font-weight:700;padding:4px 7px;border-radius:7px;background:rgba(11,12,16,.8)}
+.pv b{font-size:16px}.pv small{color:var(--mu)}.pv p{margin:6px 0 0;font-size:13px;color:var(--mu)}
+code{font-size:13px;color:var(--ac-t)}
+@media(max-width:1100px){.edgrid{grid-template-columns:1fr}.edside{position:static;order:-1}.pv{flex-direction:row;flex-wrap:wrap;align-items:flex-start}.pvp{width:90px;flex:0 0 90px}}
+@media(max-width:900px){.edbar{left:0;padding:10px 12px}.edbar .btn{height:40px;padding:0 12px;font-size:13px}.edgrid{padding-bottom:140px}}
+.bulk[hidden],.prog[hidden]{display:none}
+.mprev{width:100%}
+.edgrid>*,.form>*,.frow>*{min-width:0}.season{min-width:0;overflow:hidden}

@@ -116,7 +116,7 @@ h+='<section class="wrap msec" aria-labelledby="hs"><h2 id="hs">'+t("sim")+'</h2
 h+='<section class="wrap msec" id="wcSec" hidden aria-labelledby="hw"><h2 id="hw">'+t("withcast")+'</h2><div id="wcBody"></div></section>';
 return h}
 var DET=null,SEASON=null;
-function fillDetail(m,d){DET=d;var full=K.loc(d.d,L),tg=K.loc(d.tagline,L),cast=d.cast||[],crew=(d.crew||[]).slice().sort(function(a,b){return(/Director|Creator/.test(b.job)?1:0)-(/Director|Creator/.test(a.job)?1:0)});
+function fillDetail(m,d){DET=d;if(d.src&&d.src.length&&!$("#wtb")){var ac=$(".mhero .acts");if(ac)ac.insertAdjacentHTML("afterbegin",'<a class="btn" id="wtb" href="watch.html?id='+encodeURIComponent(m.id)+'">'+ico.play+t("play")+'</a>')}var full=K.loc(d.d,L),tg=K.loc(d.tagline,L),cast=d.cast||[],crew=(d.crew||[]).slice().sort(function(a,b){return(/Director|Creator/.test(b.job)?1:0)-(/Director|Creator/.test(a.job)?1:0)});
 $("#castBody").innerHTML=(crew.length?'<p class="crew"><b>'+t("crew")+':</b> '+crew.slice(0,8).map(function(c){return'<span lang="en">'+esc(c.name)+'</span> <small lang="en">('+esc(c.job)+')</small>'}).join(" · ")+'</p>':'')
 +(cast.length?K.rail("castr",'<ul class="people">'+cast.map(personCard).join("")+'</ul>',L,t("cast")):'');K.railInit($("#castr"));
 if(!cast.length&&!crew.length)$("#castSec").hidden=true;
@@ -142,7 +142,7 @@ function episode(m,sn,en,opener){var s=(DET.seasons||[]).filter(function(x){retu
 if(!epd){epd=document.createElement("dialog");epd.className="epd";document.body.appendChild(epd);epd.addEventListener("click",function(ev){if(ev.target===epd)epd.close()});epd.addEventListener("close",function(){try{var u=new URLSearchParams(location.search);u.delete("e");history.replaceState(null,"","?"+u)}catch(x){}if(epd._op)epd._op.focus()})}
 epd._op=opener;var ov=K.loc(e.ov,L);epd.setAttribute("aria-label",(e.name||"")+" — "+t("season")+" "+sn+", "+t("epShort")+" "+en);
 epd.innerHTML='<div class="epbox"><button type="button" class="trx" aria-label="'+t("close")+'">✕</button><div class="ep-hero"><span class="ep-ph big" aria-hidden="true"><b>S'+sn+' · E'+en+'</b></span>'+(e.still?'<img src="'+e.still+'" alt="" width="300" height="169" onerror="this.remove()">':'')+'</div><div class="epin"><p class="eyebrow">'+esc(K.title(m,L))+' · '+t("season")+' '+sn+' · '+t("epShort")+' '+en+'</p><h2 lang="en">'+esc(e.name||"—")+'</h2><p class="meta">'+[e.date?K.date(e.date,L):null,e.rt?e.rt+" "+t("min"):null].filter(Boolean).join(" · ")+'</p>'
-+(ov?'<p'+(ov.lang!==N[L]?' lang="en"':'')+'>'+esc(ov.v)+'</p>':'<p class="meta">'+t("nodesc")+'</p>')+'<p class="mnote2">'+ico.info+t("epna")+'</p></div></div>';
++(ov?'<p'+(ov.lang!==N[L]?' lang="en"':'')+'>'+esc(ov.v)+'</p>':'<p class="meta">'+t("nodesc")+'</p>')+(e.src&&e.src.length?'<a class="btn" href="watch.html?id='+encodeURIComponent(m.id)+'&s='+sn+'&e='+en+'">'+ico.play+t("watchEp")+'</a>':'<p class="mnote2">'+ico.info+(e.status==="upcoming"?t("epSoon"):t("epna"))+'</p>')+'</div></div>';
 epd.querySelector(".trx").onclick=function(){epd.close()};try{var u=new URLSearchParams(location.search);u.set("s",sn);u.set("e",en);history.replaceState(null,"","?"+u)}catch(x){}
 if(epd.showModal)epd.showModal();else epd.setAttribute("open","")}
 function movieInit(){var m=find();if(!m)return;K.addHistory(m.id);if(window.KUA_TRACK_VIEW)KUA_TRACK_VIEW(m.id);
@@ -156,11 +156,28 @@ $("#favb").addEventListener("click",function(){var on=K.toggleFav(m.id);this.set
 if(m.det){K.loadDetail(m.id).then(function(d){fillDetail(m,d)}).catch(function(){var er='<div class="err-state">'+ico.info+'<p>'+t("loadErr")+'</p><button type="button" class="btn secondary" onclick="location.reload()">'+t("retry")+'</button></div>';["#castBody","#pn-about","#pn-extra","#eps"].forEach(function(s){if($(s))$(s).innerHTML=er})})}
 else fillDetail(m,{d:m.d,tagline:null,crew:[],cast:[]})}
 
-function render(){document.documentElement.lang=N[L];var f=P==="movie"&&find(),act=P==="catalog"?par().type:P==="search"?"search":f?f.ty:"";
+/* ---------- Перегляд: джерела відео з адмін-панелі (YouTube, Vimeo, MP4) ---------- */
+function watch(){var m=find();if(!m)return'<div class="wrap">'+notFound()+'</div>';var p=par();
+return'<div class="wrap wpage"><nav class="crumbs" aria-label="'+t("crumbs")+'"><a href="movie.html?id='+encodeURIComponent(m.id)+'">← '+esc(K.title(m,L))+'</a></nav><h1 id="wt">'+esc(K.title(m,L))+'</h1><p class="meta" id="wsub"></p><div class="video wbox" id="wbox">'+skel(1)+'</div><div class="chips2" id="wsrc" role="group" aria-label="'+t("srcL")+'"></div><p class="meta">'+t("srcNote")+'</p></div>'}
+function watchInit(){var m=find();if(!m)return;var p=par(),sn=+p.s||0,en=+p.e||0,cur=null,box=$("#wbox");
+K.loadDetail(m.id).then(function(d){var list=d.src||[],sub="";
+  if(sn&&en){var se=(d.seasons||[]).filter(function(x){return x.n===sn})[0],e=se&&se.eps.filter(function(x){return x.n===en})[0];list=(e&&e.src)||[];sub=t("season")+" "+sn+" · "+t("epShort")+" "+en+(e&&e.name?" · "+e.name:"");document.title=K.title(m,L)+" — "+sub+" — KinoUA"}
+  $("#wsub").textContent=sub;if(window.KUA_TRACK_VIEW)KUA_TRACK_VIEW(m.id);
+  if(!list.length){box.innerHTML='<div class="yt-err">'+ico.info+'<p>'+t("nat")+'</p><a class="btn" href="movie.html?id='+encodeURIComponent(m.id)+'">'+t("more")+'</a></div>';box.classList.add("err");return}
+  function show(i){var s=list[i];if(cur&&cur.destroy)cur.destroy();cur=null;box.classList.remove("err");box.innerHTML="";
+    if(s.provider==="youtube")cur=K.yt(box,{t:m.t,trailer:{yt:s.ref,name:s.label||""}},L,{autoplay:false});
+    else if(s.provider==="vimeo")box.innerHTML='<iframe src="https://player.vimeo.com/video/'+encodeURIComponent(s.ref)+'?dnt=1" title="'+esc(m.t)+'" allow="fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+    else box.innerHTML='<video controls playsinline preload="metadata" src="'+esc(s.ref)+'"></video>';
+    document.querySelectorAll("#wsrc button").forEach(function(b,j){b.setAttribute("aria-pressed",String(j===i))})}
+  $("#wsrc").innerHTML=list.length>1?list.map(function(s,i){return'<button type="button" aria-pressed="false">'+esc(s.label||({youtube:"YouTube",vimeo:"Vimeo",mp4:"MP4"})[s.provider])+(s.lang?' · '+esc(s.lang.toUpperCase()):'')+'</button>'}).join(""):"";
+  document.querySelectorAll("#wsrc button").forEach(function(b,i){b.addEventListener("click",function(){show(i)})});show(0)})
+.catch(function(){box.innerHTML='<div class="err-state">'+ico.info+'<p>'+t("loadErr")+'</p><button type="button" class="btn secondary" onclick="location.reload()">'+t("retry")+'</button></div>'})}
+
+function render(){document.documentElement.lang=N[L];var f=(P==="movie"||P==="watch")&&find(),act=P==="catalog"?par().type:P==="search"?"search":f?f.ty:"";
 K.header($("#hd"),L,function(i){L=i;render()},act);K.footer($("#ft"),L);
-$("#app").innerHTML=({catalog:catalog,movie:movie,search:search})[P]();
+$("#app").innerHTML=({catalog:catalog,movie:movie,search:search,watch:watch})[P]();
 var ttl=P==="catalog"?$("#app h1").textContent:P==="search"?t("srch"):f?K.title(f,L):t("nf");document.title=ttl+" — KinoUA";
 var md=document.querySelector('meta[name="description"]');if(md&&f){var s=K.short(f,L);md.content=s?s.v:""}
-if(P==="catalog")catInit();if(P==="movie")movieInit();if(P==="search")K.reveal(".grid .pc")}
-render();
+if(P==="catalog")catInit();if(P==="movie")movieInit();if(P==="watch")watchInit();if(P==="search")K.reveal(".grid .pc")}
+KUA_READY.then(render);
 })();
