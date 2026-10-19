@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="uk"><head><meta charset="utf-8"><title>KinoUA — студія демо-відео</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#111318;color:#E7E9EF;font:14px Inter,sans-serif;padding:16px}canvas{width:640px;border:1px solid #333;display:block;margin:8px 0}button{font:inherit;padding:8px 14px;margin-right:6px}</style>
+</head><body>
+<p>Інструмент розробника: малює кадри на canvas, змішує звук (OfflineAudioContext) і кодує MP4 (WebCodecs H.264 + AAC, mp4-muxer).
+Не підключений до сайту. Голоси: <code>tools/voice/*.wav</code> (macOS <code>say</code>).</p>
+<button id="b1">Сцена (24 с)</button><button id="b2">Демо (50 с)</button><button id="pv">Перегляд кадру</button><input id="pt" type="number" value="20" step="0.5" style="width:70px">
+<pre id="log"></pre><canvas id="cv" width="1280" height="720"></canvas>
+<script src="../js/data.js"></script><script src="../js/catalog.js"></script><script>window.KUA={}</script><script src="../js/art.js"></script>
+<script src="vendor/mp4-muxer.js"></script>
+<script>
+"use strict";
+const W=1280,H=720,FPS=30,SAVE="http://127.0.0.1:8766/";
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+const log=(...a)=>{document.getElementById("log").textContent+=a.join(" ")+"\n";console.log(...a)};
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t,ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,easeOut=t=>1-Math.pow(1-t,3);
+const seg=(t,a,b)=>clamp((t-a)/(b-a));
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function fit(c,t,w){if(c.measureText(t).width<=w)return t;while(t.length>1&&c.measureText(t+"…").width>w)t=t.slice(0,-1);return t.trim()+"…"}
+function rnd(seed){let s=seed;return()=>{s=(s*9301+49297)%233280;return s/233280}}
+
+/* ---------- Сценарій: репліки сцени «Маяк» (власний текст KinoUA) ---------- */
+const CUES=[
+{at:1.2,wav:"l1",en:"The storm is getting worse.",uk:"Буря посилюється.",ru:"Буря усиливается."},
+{at:4.2,wav:"l2",en:"I can't give up now.",uk:"Я не можу здатися зараз.",ru:"Я не могу сдаться сейчас."},
+{at:6.8,wav:"l3",en:"The light has to keep burning.",uk:"Світло має горіти й далі.",ru:"Свет должен гореть и дальше."},
+{at:10.4,wav:"l4",en:"Then let's climb up and check the lamp.",uk:"Тоді піднімімося й перевірмо лампу.",ru:"Тогда давай поднимемся и проверим лампу."},
+{at:14.0,wav:"l5",en:"Hold on tight. We're almost there.",uk:"Тримайся міцно. Ми майже прийшли.",ru:"Держись крепче. Мы почти пришли."},
+{at:18.6,wav:"l6",en:"Look! The ship has seen the light.",uk:"Дивись! Корабель побачив світло.",ru:"Смотри! Корабль увидел свет."}];
+const SCENE_LEN=24;
+let AUD={};
+async function loadAudio(){const ac=new OfflineAudioContext(2,48000,48000);for(const n of["l1","l2","l3","l4","l5","l6","l7"]){const b=await (await fetch("voice/"+n+".wav")).arrayBuffer();AUD[n]=await ac.decodeAudioData(b)}
+CUES.forEach(c=>{c.end=c.at+AUD[c.wav].duration;c.t0=+(c.at-0.15).toFixed(2);c.t1=+(c.end+0.55).toFixed(2)})}
+function cueAt(t){return CUES.find(c=>t>=c.t0&&t<c.t1)}
+
+/* ---------- Попередньо намальовані шари ---------- */
+let CLOUD,GRAIN,POSTERS=[],LH_POSTER,STILL;
+function makeLayers(){
+CLOUD=document.createElement("canvas");CLOUD.width=2560;CLOUD.height=420;const c=CLOUD.getContext("2d");c.filter="blur(28px)";const r=rnd(7);
+for(let i=0;i<46;i++){const x=r()*2560,y=40+r()*300,w=160+r()*360,h=50+r()*90;c.fillStyle=`rgba(${20+r()*30|0},${45+r()*35|0},${58+r()*40|0},${.35+r()*.4})`;c.beginPath();c.ellipse(x,y,w,h,0,0,7);c.fill();if(x<400){c.beginPath();c.ellipse(x+2560,y,w,h,0,0,7);c.fill()}}
+GRAIN=document.createElement("canvas");GRAIN.width=GRAIN.height=256;const g=GRAIN.getContext("2d"),id=g.createImageData(256,256),rr2=rnd(3);
+for(let i=0;i<id.data.length;i+=4){const v=rr2()*255;id.data[i]=id.data[i+1]=id.data[i+2]=v;id.data[i+3]=255}g.putImageData(id,0,0)}
+async function svgBitmap(svg,w,h){const img=new Image();img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);await img.decode();const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d");x.drawImage(img,0,0,w,h);return c}
+// Справжні тайтли каталогу (постери TMDB з assets/posters). На сайті для них доступні опис і трейлер, тому підпис — «Трейлер».
+async function makePosters(){for(const id of["dune-part-two-2024","interstellar-2014","coco-2017","the-wild-robot-2024","spider-man-across-the-spider-verse-2023"]){const m=MOVIES.find(x=>x.id===id),img=new Image();await new Promise((ok,no)=>{img.onload=ok;img.onerror=()=>no(new Error("poster "+id));img.src="../"+m.poster});const c=document.createElement("canvas");c.width=400;c.height=600;c.getContext("2d").drawImage(img,0,0,400,600);POSTERS.push({t:m.n.uk||m.t,c})}
+LH_POSTER=document.createElement("canvas");LH_POSTER.width=400;LH_POSTER.height=600;const p=LH_POSTER.getContext("2d");p.save();p.translate(-640,-30);p.scale(1.15,1.15);drawScene(p,8.5,{noGrain:true});p.restore();
+const gr=p.createLinearGradient(0,330,0,600);gr.addColorStop(0,"rgba(0,0,0,0)");gr.addColorStop(1,"rgba(0,0,0,.8)");p.fillStyle=gr;p.fillRect(0,0,400,600);
+p.fillStyle="#fff";p.font="700 64px Inter";p.textAlign="center";p.fillText("МАЯК",200,540);
+STILL=document.createElement("canvas");STILL.width=W;STILL.height=H;drawScene(STILL.getContext("2d"),7.2,{})}
+
+/* ---------- Оригінальна анімована сцена: маяк у бурю ---------- */
+function drawScene(c,t,o){o=o||{};c.save();
+const zoom=1+0.07*ease(clamp(t/SCENE_LEN)),flash=(t>9&&t<9.12)||(t>9.28&&t<9.36)?1:0;
+c.translate(900,360);c.scale(zoom,zoom);c.translate(-900,-360);if(flash)c.translate(Math.sin(t*90)*3,0);
+let g=c.createLinearGradient(0,0,0,470);g.addColorStop(0,"#040b12");g.addColorStop(.6,"#0c2430");g.addColorStop(1,"#1c4a55");c.fillStyle=g;c.fillRect(-100,-100,W+200,580);
+const sr=rnd(11);c.fillStyle="#cfe3e8";for(let i=0;i<70;i++){const x=sr()*W,y=sr()*300,a=.15+.35*Math.abs(Math.sin(t*1.3+i));c.globalAlpha=a*.6;c.fillRect(x,y,1.6,1.6)}c.globalAlpha=1;
+const off=(t*14)%1280;c.drawImage(CLOUD,-off,-40);c.drawImage(CLOUD,-off*1.6%2560+1280,10,2560,380);
+// промінь маяка
+const LX=1012,LY=158,ang=Math.PI+Math.sin(t*0.55)*0.75,len=1500,spread=0.11+0.03*Math.sin(t*2.1);
+const lampOn=t<12?(0.55+0.45*Math.abs(Math.sin(t*7.3))*(Math.sin(t*2.7)>-.3?1:.2)):1;
+c.save();c.globalCompositeOperation="lighter";g=c.createRadialGradient(LX,LY,0,LX,LY,len);g.addColorStop(0,`rgba(255,232,160,${.55*lampOn})`);g.addColorStop(.35,`rgba(255,226,150,${.16*lampOn})`);g.addColorStop(1,"rgba(255,220,140,0)");
+c.fillStyle=g;c.beginPath();c.moveTo(LX,LY);c.lineTo(LX+Math.cos(ang-spread)*len,LY+Math.sin(ang-spread)*len*.35);c.lineTo(LX+Math.cos(ang+spread)*len,LY+Math.sin(ang+spread)*len*.35);c.closePath();c.fill();c.restore();
+// море
+g=c.createLinearGradient(0,440,0,H);g.addColorStop(0,"#0f3540");g.addColorStop(1,"#03090c");c.fillStyle=g;c.fillRect(-100,440,W+200,H-380);
+for(let k=0;k<7;k++){const y=455+k*k*6.5,amp=3+k*2.2,sp=.6+k*.25;c.beginPath();c.moveTo(-100,y);for(let x=-100;x<=W+100;x+=20)c.lineTo(x,y+Math.sin(x*.012+t*sp+k)*amp+Math.sin(x*.031-t*sp*1.3)*amp*.4);
+c.strokeStyle=`rgba(140,215,225,${.06+k*.025})`;c.lineWidth=1.2+k*.35;c.stroke()}
+// корабель
+const shipX=330+t*7,turn=seg(t,18.8,22);c.save();c.translate(shipX,452);c.scale(1-turn*1.6>-1?1-turn*1.6:-1,1);c.fillStyle="#050c10";c.beginPath();c.moveTo(-40,0);c.lineTo(40,0);c.lineTo(30,10);c.lineTo(-34,10);c.closePath();c.fill();c.fillRect(-14,-14,22,14);c.fillRect(-4,-26,4,12);
+c.fillStyle=`rgba(255,214,120,${.7+.3*Math.sin(t*5)})`;c.fillRect(-10,-9,4,3);c.fillRect(0,-9,4,3);c.fillStyle=t>19?"#7dffb2":"#ff6b5a";c.beginPath();c.arc(-2,-28,2.2,0,7);c.fill();c.restore();
+// скеля
+c.fillStyle="#061015";c.beginPath();c.moveTo(720,H);c.lineTo(760,500);c.lineTo(820,468);c.lineTo(900,452);c.lineTo(980,440);c.lineTo(1100,438);c.lineTo(1200,450);c.lineTo(W+100,470);c.lineTo(W+100,H);c.closePath();c.fill();
+c.strokeStyle="rgba(120,200,210,.12)";c.lineWidth=2;c.beginPath();c.moveTo(760,500);c.lineTo(820,468);c.lineTo(900,452);c.lineTo(980,440);c.lineTo(1100,438);c.stroke();
+// маяк
+c.save();c.beginPath();c.moveTo(978,440);c.lineTo(1046,440);c.lineTo(1034,190);c.lineTo(990,190);c.closePath();c.clip();
+for(let i=0;i<6;i++){c.fillStyle=i%2?"#d8d2c4":"#7a2b2b";c.fillRect(960,190+i*42,110,42)}g=c.createLinearGradient(978,0,1046,0);g.addColorStop(0,"rgba(0,0,0,.55)");g.addColorStop(.45,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,.65)");c.fillStyle=g;c.fillRect(960,180,110,270);c.restore();
+c.fillStyle="#141b20";c.fillRect(980,180,64,12);c.fillRect(976,178,72,4);
+c.fillStyle=`rgba(255,226,140,${.6+.4*lampOn})`;c.fillRect(994,146,36,32);c.strokeStyle="#141b20";c.lineWidth=3;c.strokeRect(994,146,36,32);c.beginPath();c.moveTo(1012,146);c.lineTo(1012,178);c.stroke();
+c.fillStyle="#141b20";c.beginPath();c.moveTo(988,146);c.lineTo(1036,146);c.lineTo(1012,124);c.closePath();c.fill();
+c.save();c.globalCompositeOperation="lighter";g=c.createRadialGradient(LX,LY,0,LX,LY,120);g.addColorStop(0,`rgba(255,230,150,${.55*lampOn})`);g.addColorStop(1,"rgba(255,230,150,0)");c.fillStyle=g;c.fillRect(LX-120,LY-120,240,240);c.restore();
+c.fillStyle="rgba(255,214,120,.85)";c.fillRect(1006,400,12,22);
+// персонажі
+const walk=ease(seg(t,14,18.2)),kx=lerp(872,936,walk),gx=lerp(842,906,walk),bob=Math.sin(t*9)*(walk>0&&walk<1?2:0);
+drawKeeper(c,kx,454+bob,t);drawGirl(c,gx,456-bob,t);
+// дощ
+const rr3=rnd(5);c.strokeStyle="rgba(190,225,235,.22)";c.lineWidth=1.2;c.beginPath();for(let i=0;i<220;i++){const x0=rr3()*1500-100,y0=rr3()*H,sp=700+rr3()*500,y=(y0+t*sp)%(H+40)-20,x=x0-((t*sp)%(H+40))*.18;c.moveTo(x,y);c.lineTo(x-5,y+22)}c.stroke();
+if(flash){c.fillStyle="rgba(220,240,255,.28)";c.fillRect(-100,-100,W+200,H+200);c.strokeStyle="rgba(235,245,255,.95)";c.lineWidth=3;c.beginPath();c.moveTo(420,0);c.lineTo(440,90);c.lineTo(410,140);c.lineTo(450,230);c.lineTo(432,300);c.stroke()}
+c.restore();
+// віньєтка й зерно
+g=c.createRadialGradient(W/2,H/2,H*.35,W/2,H/2,H*.95);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,.6)");c.fillStyle=g;c.fillRect(0,0,W,H);
+if(!o.noGrain){c.save();c.globalAlpha=.045;c.globalCompositeOperation="overlay";const ox=(t*977%256)|0,oy=(t*631%256)|0;for(let x=-ox;x<W;x+=256)for(let y=-oy;y<H;y+=256)c.drawImage(GRAIN,x,y);c.restore()}}
+function drawKeeper(c,x,y,t){c.save();c.translate(x,y);c.fillStyle="#03080b";c.beginPath();c.moveTo(-11,0);c.lineTo(-14,-46);c.quadraticCurveTo(-12,-62,0,-64);c.quadraticCurveTo(12,-62,13,-46);c.lineTo(12,0);c.closePath();c.fill();
+c.beginPath();c.arc(0,-72,8,0,7);c.fill();c.fillRect(-12,-80,24,4);c.fillRect(-7,-88,14,9);
+c.strokeStyle="#03080b";c.lineWidth=5;c.lineCap="round";c.beginPath();c.moveTo(10,-50);c.lineTo(20,-30);c.stroke();
+c.fillStyle="rgba(255,210,120,.95)";c.fillRect(17,-30,7,9);c.globalCompositeOperation="lighter";const g=c.createRadialGradient(20,-25,0,20,-25,40);g.addColorStop(0,"rgba(255,200,110,.45)");g.addColorStop(1,"rgba(255,200,110,0)");c.fillStyle=g;c.fillRect(-20,-65,80,80);c.restore()}
+function drawGirl(c,x,y,t){c.save();c.translate(x,y);c.fillStyle="#03080b";c.beginPath();c.moveTo(-9,0);c.lineTo(-10,-34);c.quadraticCurveTo(-8,-46,0,-47);c.quadraticCurveTo(8,-46,9,-34);c.lineTo(9,0);c.closePath();c.fill();
+c.beginPath();c.arc(0,-54,7,0,7);c.fill();c.strokeStyle="#3a1a40";c.lineWidth=4;c.lineCap="round";c.beginPath();c.moveTo(-4,-45);c.quadraticCurveTo(-18,-44+Math.sin(t*8)*4,-30,-40+Math.sin(t*6)*6);c.stroke();c.restore()}
+
+/* ---------- Елементи інтерфейсу KinoUA ---------- */
+const C={bg:"#111318",sf:"#1B1E25",sf2:"#242833",ac:"#7C5CFC",btn:"#6E4EF2",ac2:"#A68FFF",tx:"#E7E9EF",mu:"#9AA0AE",ln:"#2C303B",teal:"#4FD1C5"};
+function font(w,s){return w+" "+s+"px Inter"}
+function mark(c,x,y,s){c.save();c.translate(x,y);c.scale(s/64,s/64);const g=c.createLinearGradient(0,0,64,64);g.addColorStop(0,"#9A80FF");g.addColorStop(1,"#5B3DDB");c.fillStyle=g;rr(c,0,0,64,64,16);c.fill();
+c.fillStyle="#fff";c.strokeStyle="#fff";c.lineWidth=4;c.lineJoin="round";c.beginPath();c.moveTo(25,13.5);c.lineTo(44,25);c.lineTo(25,36.5);c.closePath();c.fill();c.stroke();rr(c,13,44,38,5.5,2.75);c.fill();c.globalAlpha=.6;rr(c,20,52.5,24,4.5,2.25);c.fill();c.restore()}
+function brandBg(c,t){c.fillStyle="#0B0C10";c.fillRect(0,0,W,H);c.save();c.strokeStyle="rgba(79,209,197,.07)";c.lineWidth=1;for(let x=-40+(t*8%40);x<W;x+=40){c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke()}for(let y=0;y<H;y+=40){c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke()}c.restore();
+let g=c.createRadialGradient(W*.5,H*.62,0,W*.5,H*.62,560);g.addColorStop(0,"rgba(124,92,252,.38)");g.addColorStop(1,"rgba(124,92,252,0)");c.fillStyle=g;c.fillRect(0,0,W,H);
+g=c.createRadialGradient(W*.15,H*.1,0,W*.15,H*.1,420);g.addColorStop(0,"rgba(79,209,197,.14)");g.addColorStop(1,"rgba(79,209,197,0)");c.fillStyle=g;c.fillRect(0,0,W,H)}
+function cursor(c,x,y,click){c.save();if(click>0&&click<1){c.strokeStyle=`rgba(166,143,255,${1-click})`;c.lineWidth=3;c.beginPath();c.arc(x,y,8+click*30,0,7);c.stroke()}
+c.translate(x,y);c.fillStyle="#fff";c.strokeStyle="#111";c.lineWidth=1.5;c.beginPath();c.moveTo(0,0);c.lineTo(0,22);c.lineTo(6,17);c.lineTo(10,26);c.lineTo(14,24);c.lineTo(10,15);c.lineTo(18,15);c.closePath();c.fill();c.stroke();c.restore()}
+function stepChip(c,n,label,a){if(a<=0)return;c.save();c.globalAlpha=a;c.font=font(600,20);const w=c.measureText(label).width+86;c.fillStyle="rgba(11,12,16,.78)";rr(c,32,96,w,48,24);c.fill();c.strokeStyle="rgba(166,143,255,.5)";c.lineWidth=1.5;c.stroke();
+c.fillStyle=C.btn;c.beginPath();c.arc(56,120,16,0,7);c.fill();c.fillStyle="#fff";c.textAlign="center";c.textBaseline="middle";c.fillText(n,56,121);c.textAlign="left";c.fillText(label,82,121);c.restore()}
+function btn(c,x,y,w,h,label,primary,hover){c.fillStyle=primary?(hover?"#5F3FE3":C.btn):"rgba(255,255,255,.12)";rr(c,x,y,w,h,h/2);c.fill();if(!primary){c.strokeStyle="rgba(255,255,255,.38)";c.lineWidth=1.5;c.stroke()}
+c.fillStyle="#fff";c.font=font(600,20);c.textAlign="center";c.textBaseline="middle";c.fillText(label,x+w/2,y+h/2+1);c.textAlign="left"}
+function header(c){c.fillStyle="rgba(17,19,24,.92)";c.fillRect(0,0,W,76);c.strokeStyle=C.ln;c.beginPath();c.moveTo(0,76);c.lineTo(W,76);c.stroke();mark(c,32,20,36);c.font=font(700,24);c.fillStyle=C.tx;c.textBaseline="middle";c.fillText("Kino",78,39);c.fillStyle=C.ac2;c.fillText("UA",78+c.measureText("Kino").width,39);
+c.fillStyle=C.sf;rr(c,380,18,470,42,21);c.fill();c.font=font(500,17);[["Фільми",404],["Серіали",520],["Мультфільми",630],["Пошук",772]].forEach(([s,x],i)=>{if(!i){c.fillStyle=C.sf2;rr(c,x-14,23,100,32,16);c.fill()}c.fillStyle=i?C.mu:C.tx;c.fillText(s,x,40)});
+c.fillStyle=C.sf;rr(c,1000,20,128,38,19);c.fill();c.fillStyle=C.btn;rr(c,1004,24,40,30,15);c.fill();c.font=font(600,14);c.fillStyle="#fff";c.fillText("UA",1012,40);c.fillStyle=C.mu;c.fillText("RU",1054,40);c.fillText("EN",1093,40);
+c.fillStyle=C.sf;rr(c,1140,20,110,38,19);c.fill();c.fillStyle=C.tx;c.font=font(600,15);c.fillText("Увійти",1172,40)}
+function subsBox(c,lines,o){o=o||{};const size=o.size||34,gap=size*.38,bottom=o.bottom||70;let y=H-bottom;c.save();c.textAlign="center";c.textBaseline="alphabetic";
+for(let i=lines.length-1;i>=0;i--){const L=lines[i],fs=i?size*.82:size;c.font=font(i?500:600,fs);const w=c.measureText(L.text).width,tagW=o.tags?44:0;
+if(o.bg!==false){c.fillStyle=`rgba(0,0,0,${o.bgA||.55})`;rr(c,W/2-w/2-18-tagW/2,y-fs-6,w+36+tagW,fs+18,10);c.fill()}
+if(o.tags){c.fillStyle=i?"rgba(166,143,255,.9)":"rgba(255,255,255,.85)";rr(c,W/2-w/2-tagW/2-8,y-fs*.78,36,fs*.62,6);c.fill();c.fillStyle="#111";c.font=font(700,fs*.36);c.fillText(L.tag,W/2-w/2-tagW/2+10,y-fs*.33);c.font=font(i?500:600,fs)}
+c.fillStyle=i?"#D9CFFF":"#fff";c.shadowColor="rgba(0,0,0,.8)";c.shadowBlur=o.bg===false?8:0;c.fillText(L.text,W/2+tagW/2,y);c.shadowBlur=0;
+if(L.hl){const pre=L.text.slice(0,L.text.indexOf(L.hl)),x0=W/2+tagW/2-w/2+c.measureText(pre).width,hw=c.measureText(L.hl).width;c.fillStyle="#FFD84D";rr(c,x0-4,y-fs+2,hw+8,fs+8,6);c.fill();c.fillStyle="#111318";c.textAlign="left";c.fillText(L.hl,x0,y);c.textAlign="center"}
+y-=fs+gap+(o.bg!==false?10:0)}c.restore()}
+function controls(c,p,playing){const g=c.createLinearGradient(0,H-110,0,H);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,.75)");c.fillStyle=g;c.fillRect(0,H-110,W,110);
+c.fillStyle="rgba(255,255,255,.25)";rr(c,32,H-46,W-64,5,3);c.fill();c.fillStyle=C.ac;rr(c,32,H-46,(W-64)*p,5,3);c.fill();c.fillStyle="#fff";c.beginPath();c.arc(32+(W-64)*p,H-43.5,8,0,7);c.fill();
+c.fillStyle="#fff";if(playing){c.fillRect(36,H-30,5,16);c.fillRect(46,H-30,5,16)}else{c.beginPath();c.moveTo(36,H-31);c.lineTo(52,H-22);c.lineTo(36,H-13);c.closePath();c.fill()}
+c.font=font(500,15);c.textBaseline="middle";const s=Math.floor(p*SCENE_LEN);c.fillText(`0:${String(s).padStart(2,"0")} / 0:24`,70,H-21);c.font=font(700,13);c.strokeStyle="#fff";c.lineWidth=1.5;rr(c,W-130,H-31,32,20,4);c.stroke();c.fillText("CC",W-124,H-20);
+c.beginPath();c.arc(W-60,H-21,8,0,7);c.stroke();c.beginPath();c.arc(W-60,H-21,3,0,7);c.fill()}
+function settings(c,a,st){if(a<=0)return;const x=W-380+(1-easeOut(a))*60;c.save();c.globalAlpha=a;c.fillStyle="rgba(17,19,24,.94)";rr(c,x,120,340,420,20);c.fill();c.strokeStyle="rgba(166,143,255,.35)";c.lineWidth=1.5;c.stroke();
+c.fillStyle=C.tx;c.font=font(700,22);c.textBaseline="alphabetic";c.fillText("Субтитри",x+24,162);c.font=font(500,15);c.fillStyle=C.mu;c.fillText("Мови (в порядку показу)",x+24,196);
+[["Українська","UA"],["Русский","RU"],["English","EN"]].forEach(([n,k],i)=>{const y=212+i*50,on=st.langs.includes(k);c.fillStyle=on?"rgba(110,78,242,.22)":"rgba(255,255,255,.05)";rr(c,x+20,y,300,40,12);c.fill();c.strokeStyle=on?C.ac:"rgba(255,255,255,.12)";c.stroke();
+c.fillStyle=on?C.btn:"transparent";rr(c,x+32,y+11,18,18,5);c.fill();c.strokeStyle=on?C.btn:C.mu;c.stroke();if(on){c.strokeStyle="#fff";c.lineWidth=2.5;c.beginPath();c.moveTo(x+36,y+20);c.lineTo(x+40,y+24);c.lineTo(x+46,y+16);c.stroke();c.lineWidth=1.5}
+c.fillStyle=C.tx;c.font=font(600,16);c.fillText(n,x+62,y+26);c.fillStyle=C.mu;c.font=font(600,13);c.fillText(k,x+282,y+26)});
+c.fillStyle=C.mu;c.font=font(500,15);c.fillText("Розмір тексту",x+24,388);c.fillStyle="rgba(255,255,255,.18)";rr(c,x+24,402,292,6,3);c.fill();const sp=(st.size-26)/(46-26);c.fillStyle=C.ac;rr(c,x+24,402,292*sp,6,3);c.fill();c.fillStyle="#fff";c.beginPath();c.arc(x+24+292*sp,405,10,0,7);c.fill();
+c.fillStyle=C.mu;c.fillText("Фон субтитрів",x+24,452);c.fillStyle=st.bg?C.btn:"rgba(255,255,255,.2)";rr(c,x+256,434,60,30,15);c.fill();c.fillStyle="#fff";c.beginPath();c.arc(st.bg?x+301:x+271,449,11,0,7);c.fill();
+c.fillStyle=C.mu;c.fillText("Положення",x+24,504);["Внизу","Вгорі"].forEach((s,i)=>{c.fillStyle=i===0?"rgba(110,78,242,.3)":"rgba(255,255,255,.06)";rr(c,x+150+i*84,484,76,30,15);c.fill();c.fillStyle=C.tx;c.font=font(600,14);c.fillText(s,x+164+i*84,504)});c.restore()}
+
+/* ---------- Монтаж демо-ролика (50 с) ---------- */
+const DEMO_LEN=50,PLAY0=14,PLAY1=36;
+function demoFrame(c,t){
+if(t<4.4){brandBg(c,t);const a=easeOut(seg(t,.3,1.6));c.save();c.globalAlpha=a;const s=lerp(.6,1,a);mark(c,W/2-60*s,250-30*(1-a),120*s);c.restore();
+c.globalAlpha=easeOut(seg(t,1.1,2));c.font=font(700,72);c.textAlign="center";c.textBaseline="alphabetic";c.fillStyle=C.tx;const kw=c.measureText("Kino").width,uw=c.measureText("UA").width;c.textAlign="left";c.fillText("Kino",W/2-(kw+uw)/2,470);c.fillStyle=C.ac2;c.fillText("UA",W/2-(kw+uw)/2+kw,470);
+c.globalAlpha=easeOut(seg(t,1.9,2.8));c.textAlign="center";c.fillStyle=C.mu;c.font=font(500,30);c.fillText("Дивіться фільми. Вивчайте мови.",W/2,530);c.globalAlpha=1;c.textAlign="left";
+if(t>3.8){c.fillStyle=`rgba(11,12,16,${seg(t,3.8,4.4)})`;c.fillRect(0,0,W,H)}return}
+if(t<10.2){const u=t-4.4;brandBg(c,t);header(c);c.font=font(700,40);c.fillStyle=C.tx;c.textBaseline="alphabetic";c.fillText("Каталог KinoUA",48,190);c.font=font(500,17);c.fillStyle=C.mu;c.fillText("Трейлери фільмів і демо-сцена з подвійними субтитрами",48,218);
+const items=[POSTERS[0],POSTERS[1],{t:"Маяк",c:LH_POSTER},POSTERS[2],POSTERS[3],POSTERS[4]];const hov=seg(t,7.6,8.2),click=seg(t,8.6,9.2);
+items.forEach((p,i)=>{const x=48+i*200-u*6,y=246,isL=i===2,sc=isL?1+.06*hov:1,a=easeOut(seg(u,i*.08,.6+i*.08));c.save();c.globalAlpha=a;c.translate(x+90,y+135+(1-a)*30);c.scale(sc,sc);
+if(isL&&hov){c.shadowColor="rgba(124,92,252,.6)";c.shadowBlur=30}rr(c,-90,-135,180,270,16);c.save();c.clip();c.drawImage(p.c,-90,-135,180,270);c.restore();c.shadowBlur=0;if(isL&&hov){c.strokeStyle=C.ac;c.lineWidth=3;rr(c,-90,-135,180,270,16);c.stroke()}
+c.fillStyle=C.tx;c.font=font(600,18);c.fillText(fit(c,p.t,180),-90,165);c.fillStyle=C.mu;c.font=font(500,14);c.fillText(isL?"Демо-сцена · плеєр KinoUA":"Трейлер · опис",-90,188);c.restore()});
+stepChip(c,1,"Оберіть фільм",seg(t,4.8,5.3));const cx=lerp(640,488,ease(seg(t,6.2,7.8))),cy=lerp(640,366,ease(seg(t,6.2,7.8)));cursor(c,cx,cy,click);
+if(t>9.6){c.fillStyle=`rgba(11,12,16,${seg(t,9.6,10.2)})`;c.fillRect(0,0,W,H)}return}
+if(t<PLAY0){const u=t-10.2;c.drawImage(STILL,0,0);let g=c.createLinearGradient(0,0,W,0);g.addColorStop(0,"rgba(11,12,16,.95)");g.addColorStop(.45,"rgba(11,12,16,.7)");g.addColorStop(.8,"rgba(11,12,16,.1)");c.fillStyle=g;c.fillRect(0,0,W,H);header(c);
+const a=easeOut(seg(u,0,.7));c.globalAlpha=a;c.textBaseline="alphabetic";c.fillStyle="#fff";c.font=font(700,76);c.fillText("Маяк",64,300);c.fillStyle="#CBB9FF";c.font=font(500,22);c.fillText("The Lighthouse",66,338);
+c.fillStyle="rgba(242,243,247,.82)";c.font=font(500,19);c.fillText("2026  ·  Драма  ·  Оригінальна демо-сцена KinoUA",66,380);
+c.fillStyle="rgba(255,255,255,.1)";rr(c,64,400,420,38,19);c.fill();c.fillStyle="#fff";c.font=font(500,16);c.fillText("Субтитри: Українська · Русский · English",84,425);
+c.fillStyle="rgba(242,243,247,.9)";c.font=font(400,20);["Доглядач маяка й дівчина піднімаються до лампи,","щоб корабель у бурі побачив світло."].forEach((s,i)=>c.fillText(s,66,480+i*30));
+const pr=seg(t,12.6,13.0);btn(c,64,550,200,56,"▶  Дивитися",true,pr>0);btn(c,280,550,190,56,"Детальніше",false);c.globalAlpha=1;
+stepChip(c,1,"Оберіть фільм",1);cursor(c,lerp(700,164,ease(seg(t,10.8,12.4))),lerp(640,578,ease(seg(t,10.8,12.4))),seg(t,12.7,13.3));
+if(t>13.5){c.fillStyle=`rgba(0,0,0,${seg(t,13.5,14)})`;c.fillRect(0,0,W,H)}return}
+if(t<PLAY1){const st=t-PLAY0;drawScene(c,st,{});const fadeIn=seg(t,PLAY0,PLAY0+.5);
+const sw=seg(t,25.2,25.6)>0,langs=sw?["RU","EN"]:["UA","EN"],size=lerp(34,42,ease(seg(t,27.4,28.6))),bg=!(t>30.2&&t<31.6),setA=seg(t,23.2,23.8)*(1-seg(t,32.6,33.2));
+const cue=cueAt(st);if(cue){const second=langs[0]==="RU"?cue.ru:cue.uk;subsBox(c,[{text:cue.en,tag:"EN"},{text:second,tag:langs[0]}],{size,bg,tags:true,bottom:96})}
+controls(c,st/SCENE_LEN,true);settings(c,setA,{langs:langs,size,bg});
+stepChip(c,2,"Дві мови одночасно: оригінал і переклад",seg(t,PLAY0+.6,PLAY0+1.2)*(1-seg(t,23,23.3)));stepChip(c,3,"Оберіть пару мов: UA ↔ RU",seg(t,23.3,23.6)*(1-seg(t,27,27.3)));stepChip(c,4,"Налаштуйте розмір і фон",seg(t,27.3,27.6)*(1-seg(t,PLAY1-.4,PLAY1)));
+if(setA>0){const pts=[[700,500,23.6],[W-330,235+0*50,24.6],[W-330,235+1*50,25.3],[W-150,405,26.6],[W-74,405,28.6],[W-90,449,30.0],[W-90,449,31.4]];let p=pts[0];for(let i=1;i<pts.length;i++){const k=ease(seg(t,pts[i-1][2],pts[i][2]));if(t>=pts[i-1][2])p=[lerp(pts[i-1][0],pts[i][0],k),lerp(pts[i-1][1],pts[i][1],k)]}
+const clk=[25.3,30.0,31.4].map(x=>seg(t,x,x+.5)).find(v=>v>0&&v<1)||0;cursor(c,p[0],p[1],clk)}
+if(fadeIn<1){c.fillStyle=`rgba(0,0,0,${1-fadeIn})`;c.fillRect(0,0,W,H)}
+if(t>PLAY1-.3){c.fillStyle=`rgba(0,0,0,${seg(t,PLAY1-.3,PLAY1)*.5})`;c.fillRect(0,0,W,H)}return}
+if(t<43.2){const u=t-PLAY1;drawScene(c,5.0,{});c.fillStyle="rgba(0,0,0,.25)";c.fillRect(0,0,W,H);const hl=t>38?"give up":null;
+subsBox(c,[{text:"I can't give up now.",tag:"EN",hl},{text:"Я не можу здатися зараз.",tag:"UA"}],{size:38,tags:true,bottom:96});controls(c,5/SCENE_LEN,false);
+stepChip(c,5,"Натисніть на слово — побачите переклад",seg(u,.2,.7));
+c.font=font(600,38);const full="I can't give up now.",w=c.measureText(full).width,wx=W/2+22-w/2+c.measureText("I can't ").width+c.measureText("give up").width/2;
+cursor(c,lerp(900,wx,ease(seg(t,36.6,37.7))),lerp(300,H-120,ease(seg(t,36.6,37.7))),seg(t,37.8,38.4));
+const ca=easeOut(seg(t,38.2,38.8));if(ca>0){const x=W/2-200,y=H-470+(1-ca)*20;c.save();c.globalAlpha=ca;c.fillStyle="rgba(17,19,24,.97)";rr(c,x,y,400,250,20);c.fill();c.strokeStyle="rgba(166,143,255,.5)";c.lineWidth=1.5;c.stroke();
+c.textBaseline="alphabetic";c.fillStyle="#fff";c.font=font(700,30);c.fillText("give up",x+24,y+50);c.fillStyle=C.mu;c.font=font(500,18);c.fillText("[ɡɪv ˈʌp]",x+140,y+48);c.font=font(500,14);c.fillText("фразове дієслово",x+24,y+74);
+c.fillStyle=C.ac;c.beginPath();c.arc(x+360,y+40,18,0,7);c.fill();c.fillStyle="#fff";c.beginPath();c.moveTo(x+352,y+34);c.lineTo(x+357,y+34);c.lineTo(x+364,y+28);c.lineTo(x+364,y+52);c.lineTo(x+357,y+46);c.lineTo(x+352,y+46);c.closePath();c.fill();
+if(t>39.2&&t<40.2){c.strokeStyle=`rgba(166,143,255,${1-seg(t,39.2,40.2)})`;c.lineWidth=3;c.beginPath();c.arc(x+360,y+40,18+seg(t,39.2,40.2)*16,0,7);c.stroke()}
+c.fillStyle="#D9CFFF";c.font=font(600,24);c.fillText("здаватися, відмовлятися",x+24,y+108);c.fillStyle=C.mu;c.font=font(400,17);c.fillText("Don't give up on your dreams.",x+24,y+142);c.fillText("Не відмовляйся від своїх мрій.",x+24,y+166);
+const saved=t>41.4;c.fillStyle=saved?"rgba(47,158,98,.9)":C.btn;rr(c,x+24,y+186,352,44,22);c.fill();c.fillStyle="#fff";c.font=font(600,17);c.textAlign="center";c.fillText(saved?"✓  Збережено в словник":"+  Додати до словника",x+200,y+214);c.textAlign="left";c.restore();
+const cp=[[wx,H-120,38.6],[x+360,y+40,39.1],[x+200,y+208,41.0]];let p=cp[0];for(let i=1;i<cp.length;i++){if(t>=cp[i-1][2]){const k=ease(seg(t,cp[i-1][2],cp[i][2]));p=[lerp(cp[i-1][0],cp[i][0],k),lerp(cp[i-1][1],cp[i][1],k)]}}if(t>38.6)cursor(c,p[0],p[1],[seg(t,39.1,39.6),seg(t,41.1,41.6)].find(v=>v>0&&v<1)||0)}
+if(t>42.6){c.fillStyle=`rgba(11,12,16,${seg(t,42.6,43.2)})`;c.fillRect(0,0,W,H)}return}
+const u=t-43.2;brandBg(c,t);const a=easeOut(seg(u,0,.8));c.globalAlpha=a;mark(c,W/2-46,150,92);c.textAlign="center";c.textBaseline="alphabetic";c.fillStyle=C.tx;c.font=font(700,62);c.fillText("Дивіться фільми.",W/2,340);c.fillStyle=C.ac2;c.fillText("Вивчайте мови.",W/2,412);
+c.fillStyle=C.mu;c.font=font(500,22);c.fillText("Оригінал і переклад одночасно — українська, русский, English",W/2,466);c.globalAlpha=easeOut(seg(u,.6,1.3));btn(c,W/2-150,510,300,62,"Почати перегляд",true,Math.sin(u*3)>0);c.textAlign="left";
+c.fillStyle="rgba(255,255,255,.5)";c.font=font(500,15);c.textAlign="center";c.fillText("Демо-ролик KinoUA · сцена й діалоги створені для демонстрації",W/2,H-36);c.textAlign="left";c.globalAlpha=1;
+if(t>DEMO_LEN-.6){c.fillStyle=`rgba(0,0,0,${seg(t,DEMO_LEN-.6,DEMO_LEN)})`;c.fillRect(0,0,W,H)}}
+
+/* ---------- Звук ---------- */
+function noiseBuf(ac,sec){const b=ac.createBuffer(2,ac.sampleRate*sec,ac.sampleRate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);let last=0;for(let i=0;i<d.length;i++){const w=Math.random()*2-1;last=(last+0.02*w)/1.02;d[i]=last*3.5}}return b}
+function ambience(ac,t0,dur,gain){const n=ac.createBufferSource();n.buffer=noiseBuf(ac,dur);const f=ac.createBiquadFilter();f.type="lowpass";f.frequency.value=900;const g=ac.createGain();g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(gain,t0+.8);g.gain.setValueAtTime(gain,t0+dur-1);g.gain.linearRampToValueAtTime(0,t0+dur);
+const lfo=ac.createOscillator(),lg=ac.createGain();lfo.frequency.value=.12;lg.gain.value=gain*.4;lfo.connect(lg).connect(g.gain);lfo.start(t0);lfo.stop(t0+dur);n.connect(f).connect(g).connect(ac.destination);n.start(t0)}
+function thunder(ac,t0){const n=ac.createBufferSource();n.buffer=noiseBuf(ac,3);const f=ac.createBiquadFilter();f.type="lowpass";f.frequency.value=180;const g=ac.createGain();g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(.9,t0+.08);g.gain.exponentialRampToValueAtTime(.001,t0+2.8);n.connect(f).connect(g).connect(ac.destination);n.start(t0)}
+function pad(ac,t0,dur,gain){const chords=[[220,277.18,329.63],[196,246.94,293.66],[174.61,220,261.63],[196,246.94,329.63]];const step=dur/chords.length;
+chords.forEach((ch,i)=>ch.forEach(fq=>{const o=ac.createOscillator();o.type="triangle";o.frequency.value=fq/2;const f=ac.createBiquadFilter();f.type="lowpass";f.frequency.value=700;const g=ac.createGain();const s=t0+i*step;
+g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(gain,s+1.2);g.gain.setValueAtTime(gain,s+step-.6);g.gain.linearRampToValueAtTime(0,s+step+.6);o.connect(f).connect(g).connect(ac.destination);o.start(s);o.stop(s+step+.7)}))}
+function click(ac,t0){const o=ac.createOscillator();o.frequency.value=1800;const g=ac.createGain();g.gain.setValueAtTime(.12,t0);g.gain.exponentialRampToValueAtTime(.001,t0+.06);o.connect(g).connect(ac.destination);o.start(t0);o.stop(t0+.08)}
+function voice(ac,name,t0,gain){const s=ac.createBufferSource();s.buffer=AUD[name];const g=ac.createGain();g.gain.value=gain||1.3;s.connect(g).connect(ac.destination);s.start(t0)}
+async function sceneAudio(){const ac=new OfflineAudioContext(2,48000*SCENE_LEN,48000);ambience(ac,0,SCENE_LEN,.16);thunder(ac,9.05);pad(ac,0,SCENE_LEN,.025);CUES.forEach(c=>voice(ac,c.wav,c.at));return ac.startRendering()}
+async function demoAudio(){const ac=new OfflineAudioContext(2,48000*DEMO_LEN,48000);pad(ac,0,PLAY0+.5,.05);pad(ac,PLAY1,DEMO_LEN-PLAY1,.05);ambience(ac,PLAY0,PLAY1-PLAY0+7.2,.13);thunder(ac,PLAY0+9.05);
+CUES.forEach(c=>{if(PLAY0+c.at<PLAY1)voice(ac,c.wav,PLAY0+c.at)});[8.9,12.9,PLAY0+11.3,PLAY0+16,PLAY0+17.4,38.05].forEach(x=>click(ac,x));voice(ac,"l7",39.25,1.4);click(ac,41.25);return ac.startRendering()}
+
+/* ---------- Кодування MP4 ---------- */
+async function encode(name,len,draw,audioBuf,bitrate){const muxer=new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(),video:{codec:"avc",width:W,height:H,frameRate:FPS},audio:{codec:"aac",numberOfChannels:2,sampleRate:48000},fastStart:"in-memory"});
+const ve=new VideoEncoder({output:(ch,m)=>muxer.addVideoChunk(ch,m),error:e=>log("VE error",e.message)});ve.configure({codec:"avc1.640028",width:W,height:H,bitrate,framerate:FPS,latencyMode:"quality"});
+const n=Math.round(len*FPS);for(let i=0;i<n;i++){draw(ctx,i/FPS);const f=new VideoFrame(cv,{timestamp:Math.round(i*1e6/FPS),duration:Math.round(1e6/FPS)});ve.encode(f,{keyFrame:i%(FPS*2)===0});f.close();
+if(ve.encodeQueueSize>6)await new Promise(r=>ve.addEventListener("dequeue",r,{once:true}));if(i%150===0)log(name,"frame",i,"/",n)}
+await ve.flush();
+const ae=new AudioEncoder({output:(ch,m)=>muxer.addAudioChunk(ch,m),error:e=>log("AE error",e.message)});ae.configure({codec:"mp4a.40.2",sampleRate:48000,numberOfChannels:2,bitrate:128000});
+const L=audioBuf.getChannelData(0),R=audioBuf.getChannelData(1),N=1024;for(let i=0;i<L.length;i+=N){const k=Math.min(N,L.length-i),d=new Float32Array(k*2);d.set(L.subarray(i,i+k),0);d.set(R.subarray(i,i+k),k);
+const ad=new AudioData({format:"f32-planar",sampleRate:48000,numberOfFrames:k,numberOfChannels:2,timestamp:Math.round(i/48000*1e6),data:d});ae.encode(ad);ad.close()}
+await ae.flush();muxer.finalize();const buf=muxer.target.buffer;log(name,"bytes",buf.byteLength);await save(name,new Blob([buf],{type:"video/mp4"}))}
+async function save(name,blob){const r=await fetch(SAVE+name,{method:"POST",body:blob});log("save",name,r.status,await r.text())}
+async function jpg(name,draw,t){draw(ctx,t);await save(name,await new Promise(r=>cv.toBlob(r,"image/jpeg",.86)))}
+function vtt(lang){const f=s=>{const m=Math.floor(s/60),x=(s%60).toFixed(3).padStart(6,"0");return`00:${String(m).padStart(2,"0")}:${x}`};return"WEBVTT\n\n"+CUES.map((c,i)=>`${i+1}\n${f(c.t0)} --> ${f(c.t1)}\n${c[lang]}\n`).join("\n")}
+async function ready(){await document.fonts.load("600 30px Inter","Ії");await document.fonts.load("700 30px Inter","Ії");await document.fonts.load("500 30px Inter","Ії");await document.fonts.load("400 30px Inter","Ії");await loadAudio();makeLayers();await makePosters();log("ready",CUES.map(c=>c.t0+"-"+c.t1).join(" "))}
+const RDY=ready();
+window.makeScene=async()=>{await RDY;const a=await sceneAudio();await encode("kinoua-scene.mp4",SCENE_LEN,(c,t)=>drawScene(c,t,{}),a,2400000);
+for(const l of["en","uk","ru"])await save("kinoua-scene."+l+".vtt",new Blob([vtt(l)],{type:"text/vtt"}));await jpg("kinoua-scene-poster.jpg",(c,t)=>drawScene(c,t,{}),5.0);log("SCENE DONE")};
+window.makeDemo=async()=>{await RDY;const a=await demoAudio();await encode("kinoua-demo.mp4",DEMO_LEN,demoFrame,a,2600000);await jpg("kinoua-demo-poster.jpg",demoFrame,PLAY0+5.0);log("DEMO DONE")};
+window.preview=async t=>{await RDY;demoFrame(ctx,t)};
+document.getElementById("b1").onclick=()=>makeScene();document.getElementById("b2").onclick=()=>makeDemo();document.getElementById("pv").onclick=()=>preview(+document.getElementById("pt").value);
+</script></body></html>

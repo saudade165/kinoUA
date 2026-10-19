@@ -1,0 +1,172 @@
+{
+"h": [
+"Профіль",
+"Профиль",
+"Profile"
+],
+"wt": [
+"Ви ще не ввійшли",
+"Вы ещё не вошли",
+"You’re not signed in"
+],
+"wp": [
+"Увійдіть, щоб зберігати слова зі словника, обрані фільми та історію перегляду на всіх пристроях.",
+"Войдите, чтобы сохранять слова из словаря, избранные фильмы и историю просмотра на всех устройствах.",
+"Sign in to keep your dictionary words, favourite films and viewing history across devices."
+],
+"dev": [
+"Облікові записи ще в розробці: вхід запрацює після підключення сервера. Зараз ми нічого не зберігаємо.",
+"Учётные записи ещё в разработке: вход заработает после подключения сервера. Сейчас мы ничего не сохраняем.",
+"Accounts are still in development: sign-in will work once the server is connected. We don’t store anything yet."
+],
+"st": [
+"Вхід до KinoUA",
+"Вход в KinoUA",
+"Sign in to KinoUA"
+],
+"g": [
+"Продовжити з Google",
+"Продолжить с Google",
+"Continue with Google"
+],
+"tg": [
+"Продовжити з Telegram",
+"Продолжить с Telegram",
+"Continue with Telegram"
+],
+"or": [
+"або",
+"или",
+"or"
+],
+"em": [
+"Email",
+"Email",
+"Email"
+],
+"emh": [
+"Надішлемо посилання для входу — без пароля.",
+"Отправим ссылку для входа — без пароля.",
+"We’ll email you a sign-in link — no password."
+],
+"eb": [
+"Продовжити з email",
+"Продолжить с email",
+"Continue with email"
+],
+"soon": [
+"Не налаштовано",
+"Не настроено",
+"Not configured"
+],
+"soonT": [
+"Цей спосіб входу запрацює після налаштування сервера.",
+"Этот способ входа заработает после настройки сервера.",
+"This sign-in method will work once the server is configured."
+],
+"e0": [
+"Введіть email.",
+"Введите email.",
+"Enter your email."
+],
+"e1": [
+"Перевірте email: він має виглядати як name@example.com.",
+"Проверьте email: он должен выглядеть как name@example.com.",
+"Check your email: it should look like name@example.com."
+],
+"nc": [
+"Вхід через email ще не підключено до сервера. Адресу не збережено й нікуди не надіслано.",
+"Вход через email ещё не подключён к серверу. Адрес не сохранён и никуда не отправлен.",
+"Email sign-in isn’t connected to a server yet. Your address was not stored or sent anywhere."
+],
+"ld": [
+"Надсилаємо…",
+"Отправляем…",
+"Sending…"
+],
+"ok": [
+"Перевірте пошту: ми надіслали посилання для входу на ",
+"Проверьте почту: мы отправили ссылку для входа на ",
+"Check your inbox: we sent a sign-in link to "
+],
+"er": [
+"Не вдалося надіслати лист. Спробуйте ще раз трохи пізніше.",
+"Не удалось отправить письмо. Попробуйте ещё раз чуть позже.",
+"We couldn’t send the email. Please try again a bit later."
+],
+"nx": [
+"Що буде в профілі",
+"Что будет в профиле",
+"What your profile will have"
+],
+"f1": [
+"Обране",
+"Избранное",
+"Favourites"
+],
+"f1p": [
+"Фільми, які ви хочете подивитися.",
+"Фильмы, которые вы хотите посмотреть.",
+"Films you want to watch."
+],
+"f2": [
+"Історія перегляду",
+"История просмотра",
+"Viewing history"
+],
+"f2p": [
+"Продовжуйте з того місця, де зупинилися.",
+"Продолжайте с того места, где остановились.",
+"Pick up where you left off."
+],
+"f3": [
+"Особистий словник",
+"Личный словарь",
+"Personal dictionary"
+],
+"f3p": [
+"Слова й фрази з субтитрів для тренування.",
+"Слова и фразы из субтитров для тренировки.",
+"Words and phrases from subtitles to practise."
+],
+"af": [
+"Доступно після входу",
+"Доступно после входа",
+"Available after sign-in"
+],
+"hp": [
+"Потрібна допомога?",
+"Нужна помощь?",
+"Need help?"
+],
+"acc": [
+"Обліковий запис",
+"Учётная запись",
+"Account"
+],
+"out": [
+"Вийти",
+"Выйти",
+"Sign out"
+],
+"nm": [
+"Ім’я",
+"Имя",
+"Name"
+],
+"via": [
+"Спосіб входу",
+"Способ входа",
+"Signed in with"
+],
+"emptyF": [
+"Тут з’являться обрані фільми.",
+"Здесь появятся избранные фильмы.",
+"Your favourites will appear here."
+],
+"emptyH": [
+"Тут з’явиться історія перегляду.",
+"Здесь появится история просмотра.",
+"Your viewing history will appear here."
+]
+}

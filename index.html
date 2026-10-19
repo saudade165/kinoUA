@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8"><meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KinoUA — английский по видео с двойными субтитрами</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><meta name="color-scheme" content="dark light"><meta name="theme-color" content="#111318"><script src="js/theme.js?v=4.0"></script><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="description" content="KinoUA — фільми з подвійними субтитрами: англійська з відео, переклад слова одним натисканням, добірка популярних фільмів 2026 року."><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css?v=4.0">
+</head>
+<body data-page="home">
+<a class="skip" href="#main" data-i="skip"></a>
+<div class="topbar"><div class="wrap"><header id="hd"></header></div></div>
+<main id="main">
+<section class="hero2" id="hero" aria-roledescription="carousel"></section>
+<div class="wrap home">
+<section id="dual" class="dual reveal" aria-labelledby="h-dual">
+<div class="dual-head"><p class="eyebrow" data-i="dEy"></p><h2 id="h-dual" data-i="dH"></h2><p class="lead" data-i="dSub"></p></div>
+<div class="dual-grid"><div class="dual-player"><div id="dp"></div><p class="meta dp-note" data-i="dNote"></p><p class="meta dp-lvl" id="dpl"></p></div>
+<div class="dual-side"><p class="dlab" id="pairl" data-i="pairs"></p><div class="pairs" id="pairs" role="group" aria-labelledby="pairl"></div>
+<ul class="ticks"><li data-i="dt1b"></li><li data-i="dt2b"></li><li data-i="dt3b"></li><li data-i="dt4b"></li></ul>
+<div class="dual-acts"><button type="button" class="btn" id="watchDemo" data-i="dpb"></button><a class="btn secondary" href="profile.html#subs" data-i="subSet"></a></div></div></div>
+<div class="pills" data-i-list="p1 p2 p3 p4 p5"></div>
+</section>
+<section id="stats" class="stats reveal" aria-label="KinoUA"></section>
+<section id="popular" class="reveal" aria-labelledby="h-pop"><div class="shead"><div><p class="eyebrow" data-i="popEy"></p><h2 id="h-pop" data-i="popH"></h2><p class="lead" data-i="popL"></p></div>
+<div class="mq-ctl"><button type="button" class="rbtn2" id="mqp" data-ia="prv"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button><button type="button" class="rbtn2" id="mqs" aria-pressed="false"></button><button type="button" class="rbtn2" id="mqn" data-ia="nxt"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button></div></div>
+<div class="marq" id="marq"><div class="mq-track" id="mqt"></div></div>
+<div class="center"><a class="btn" href="catalog.html?type=films" data-i="allFilms"></a></div></section>
+<section id="cartoons" class="cartoons reveal" aria-labelledby="h-cart"><div class="shead"><div><p class="eyebrow" data-i="cartEy"></p><h2 id="h-cart" data-i="cartH"></h2><p class="lead" data-i="cartL"></p></div><a class="lnk" href="catalog.html?type=cartoons" data-i="allCart"></a></div>
+<div class="cart-grid"><div id="cartFeat"></div><div id="cartRail"></div></div></section>
+<section id="series" class="reveal" aria-labelledby="h-ser"><div class="shead"><div><p class="eyebrow" data-i="serEy"></p><h2 id="h-ser" data-i="serH"></h2><p class="lead" data-i="serL"></p></div><a class="lnk" href="catalog.html?type=series" data-i="allSer"></a></div><div class="sgrid" id="sgrid"></div></section>
+<section id="new" class="reveal" aria-labelledby="h-nr"><div class="shead"><div><p class="eyebrow" data-i="newEy"></p><h2 id="h-nr" data-i="nr"></h2><p class="lead" data-i="nrl"></p></div><a class="lnk" href="catalog.html?sort=sn" data-i="all"></a></div><div class="grid" id="row"></div></section>
+<section id="features" class="reveal" aria-labelledby="h-ft"><div class="shead center2"><div><p class="eyebrow" data-i="ftEy"></p><h2 id="h-ft" data-i="fth"></h2><p class="lead" data-i="ftl"></p></div></div><div class="bento" id="bento"></div></section>
+<section id="demo" class="reveal" aria-labelledby="h-dm"><div class="demo2"><div class="demo-v2"><div class="vframe"><video id="demoVid" controls preload="none" playsinline poster="assets/video/kinoua-demo-poster.jpg"><source src="assets/video/kinoua-demo.mp4" type="video/mp4"></video><div class="v-err" id="demoErr" hidden></div></div></div>
+<div class="demo-t2"><p class="eyebrow" data-i="demoEy"></p><h2 id="h-dm" data-i="dh"></h2><p class="lead2" data-i="dlv"></p><p class="dlab" data-i="chap"></p><ol class="chapters" id="chapters"></ol><p class="meta" data-i="demoNote"></p></div></div></section>
+<section id="how" class="reveal" aria-labelledby="h-hw"><div class="shead center2"><div><p class="eyebrow" data-i="howEy"></p><h2 id="h-hw" data-i="hw"></h2></div></div><ol class="steps" id="steps"></ol></section>
+<section id="faq" class="reveal" aria-labelledby="h-fq"><div class="shead center2"><div><p class="eyebrow">FAQ</p><h2 id="h-fq" data-i="fh"></h2><p class="lead" data-i="fl"></p></div></div><div class="faq">
+<details><summary data-i="q1"></summary><p data-i="a1"></p></details><details><summary data-i="q2"></summary><p data-i="a2"></p></details><details><summary data-i="q7"></summary><p data-i="a7"></p></details>
+<details><summary data-i="q3"></summary><p data-i="a3"></p></details><details><summary data-i="q4"></summary><p data-i="a4"></p></details><details><summary data-i="q5"></summary><p data-i="a5"></p></details><details><summary data-i="q6"></summary><p><span data-i="a6"></span> <span id="supf"></span></p></details>
+</div></section>
+<section id="cta" class="cta reveal" aria-labelledby="h-cta"><div class="cta-bg" id="ctaBg" aria-hidden="true"></div><div class="cta-in"><span class="cta-mark" id="ctaMark"></span><h2 id="h-cta" data-i="ctaH"></h2><p data-i="ctaP"></p><div class="center"><a class="btn" href="catalog.html" data-i="b2"></a><button type="button" class="btn secondary" id="ctaDemo" data-i="dpb"></button></div></div></section>
+</div>
+</main>
+<div class="wrap"><footer id="ft"></footer></div>
+<script src="js/i18n.js?v=4.0"></script><script src="js/data.js?v=4.0"></script><script src="js/catalog.js?v=4.0"></script><script src="js/config.js?v=4.0"></script><script src="js/nav.js?v=4.0"></script><script src="js/art.js?v=4.0"></script><script src="js/scene.js?v=4.0"></script><script src="js/player.js?v=4.0"></script><script src="js/home.js?v=4.0"></script>
+</body>
+</html>
