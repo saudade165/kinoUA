@@ -113,6 +113,9 @@ $("#demoErr").innerHTML='<p>'+t("vErr")+'</p>'}
 v.addEventListener("timeupdate",function(){var c=-1;CH.forEach(function(x,i){if(v.currentTime>=x[0])c=i});q("#chapters button").forEach(function(b,i){if(i===c)b.setAttribute("aria-current","true");else b.removeAttribute("aria-current")})})})();
 
 /* ---------- 9. Кроки, фінальний блок ---------- */
+/* ---------- Рекомендації редакції (керуються в адмін-панелі; показуються лише якщо є) ---------- */
+function picksBuild(){var R=(window.KUA_SITE&&KUA_SITE.recs)||[],sec=$("#picks");if(!sec)return;var ms=R.map(function(r){return{m:K.byId(r.id),n:r.note}}).filter(function(x){return x.m});
+sec.hidden=!ms.length;if(!ms.length)return;$("#picksr").innerHTML=K.rail("pkr",ms.map(function(x){return'<div class="wcw">'+K.card(x.m,L)+(x.n?'<p class="via">'+esc(x.n)+'</p>':'')+'</div>'}).join(""),L,t("picksH"));K.railInit($("#pkr"))}
 function stepsBuild(){var P=FILMS.slice(6,9);$("#steps").innerHTML=
 '<li><span class="sv sv1" aria-hidden="true">'+P.map(function(m){return'<img src="'+m.poster+'" alt="" width="500" height="750" loading="lazy">'}).join("")+'</span><b>1</b><h3>'+t("s1t")+'</h3><p>'+t("s1p")+'</p></li>'
 +'<li><span class="sv sv2" aria-hidden="true"><span class="sl sl-uk"><i>UA</i>Світло має горіти й далі.</span><span class="sl sl-en"><i>EN</i>The light has to keep burning.</span></span><b>2</b><h3>'+t("s2t")+'</h3><p>'+t("s2p")+'</p></li>'
@@ -123,7 +126,7 @@ function apply(){document.documentElement.lang=N[L];document.title=t("ti");
 q("[data-i]").forEach(function(e){e.innerHTML=t(e.dataset.i)});q("[data-ia]").forEach(function(e){e.setAttribute("aria-label",t(e.dataset.ia))});
 q("[data-i-list]").forEach(function(e){e.innerHTML=e.dataset.iList.split(" ").map(function(k){return'<span>'+t(k)+'</span>'}).join("")});
 K.header($("#hd"),L,function(i){L=i;apply()});K.footer($("#ft"),L);
-heroBuild();dualBuild();stats();mqBuild();cartBuild();serBuild();newBuild();bentoBuild();demoBuild();stepsBuild();
+heroBuild();dualBuild();stats();mqBuild();cartBuild();serBuild();newBuild();bentoBuild();demoBuild();stepsBuild();picksBuild();
 var a6=q('[data-i="a6"]')[0];if(a6)a6.insertAdjacentHTML("beforeend",' '+K.support(L));K.reveal()}
 apply();
 })();

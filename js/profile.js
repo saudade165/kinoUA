@@ -76,6 +76,8 @@ K.header($("#hd"),L,function(i){L=i;render()},"profile");K.footer($("#ft"),L);
 $("#app").innerHTML=AUTH.st==="in"&&AUTH.user?signedIn(AUTH.user):signedOut();init();initAuth();if($("#subs"))initDevice();if(location.hash){var h=document.querySelector(location.hash);if(h)setTimeout(function(){h.scrollIntoView()},60)}}
 // Кнопки входу й виходу
 function initAuth(){var g=$("#pg"),so=$("#so"),gs=$("#gst");
+// Посилання на адмін-панель — лише якщо сервер підтвердив роль (сама панель і всі дані теж захищені на сервері)
+if(so&&A.client)A.client.rpc("admin_whoami").then(function(r){var w=r&&r.data;if(!w||!w.role||$("#adml"))return;so.insertAdjacentHTML("beforebegin",'<a class="btn" id="adml" href="admin.html" style="margin-right:8px">'+["Адмін-панель","Админ-панель","Admin panel"][L]+'</a>')});
 if(g&&!g.disabled)g.addEventListener("click",function(){AUTH.err=null;g.disabled=true;g.setAttribute("aria-busy","true");g.querySelector("span").textContent=t("go");
   A.google().then(function(r){if(r&&r.error)throw r.error}).catch(function(e){AUTH.err=errOf(e);g.disabled=false;g.removeAttribute("aria-busy");render()})});
 if(so)so.addEventListener("click",function(){so.disabled=true;so.textContent=t("outing");

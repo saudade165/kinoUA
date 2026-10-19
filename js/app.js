@@ -145,7 +145,7 @@ epd.innerHTML='<div class="epbox"><button type="button" class="trx" aria-label="
 +(ov?'<p'+(ov.lang!==N[L]?' lang="en"':'')+'>'+esc(ov.v)+'</p>':'<p class="meta">'+t("nodesc")+'</p>')+'<p class="mnote2">'+ico.info+t("epna")+'</p></div></div>';
 epd.querySelector(".trx").onclick=function(){epd.close()};try{var u=new URLSearchParams(location.search);u.set("s",sn);u.set("e",en);history.replaceState(null,"","?"+u)}catch(x){}
 if(epd.showModal)epd.showModal();else epd.setAttribute("open","")}
-function movieInit(){var m=find();if(!m)return;K.addHistory(m.id);
+function movieInit(){var m=find();if(!m)return;K.addHistory(m.id);if(window.KUA_TRACK_VIEW)KUA_TRACK_VIEW(m.id);
 K.railInit($("#simr"));
 var tabs=[].slice.call(document.querySelectorAll('#info [role=tab]'));
 function sel(b){tabs.forEach(function(x){var on=x===b;x.setAttribute("aria-selected",String(on));x.tabIndex=on?0:-1;document.getElementById(x.getAttribute("aria-controls")).hidden=!on})}

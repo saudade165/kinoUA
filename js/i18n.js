@@ -327,7 +327,10 @@ D.uk={
   "trlOff": "Трейлер недоступний",
   "lvlScene": "Рівень демо-сцени",
   "lvlSceneN": "приблизна автоматична оцінка англійського транскрипту, не сертифікат CEFR",
-  "swipe": "Гортайте вбік, щоб перемикати"
+  "swipe": "Гортайте вбік, щоб перемикати",
+  "picksEy": "Обирає редакція",
+  "picksH": "Рекомендації редакції",
+  "picksL": "Добірку оновлюють адміністратори KinoUA."
  },
  "nav": {
   "films": "Фільми",
@@ -808,7 +811,10 @@ D.ru={
   "trlOff": "Трейлер недоступен",
   "lvlScene": "Уровень демо-сцены",
   "lvlSceneN": "приблизительная автоматическая оценка английского транскрипта, не сертификат CEFR",
-  "swipe": "Листайте в сторону для переключения"
+  "swipe": "Листайте в сторону для переключения",
+  "picksEy": "Выбирает редакция",
+  "picksH": "Рекомендации редакции",
+  "picksL": "Подборку обновляют администраторы KinoUA."
  },
  "nav": {
   "films": "Фильмы",
@@ -1289,7 +1295,10 @@ D.en={
   "trlOff": "No trailer",
   "lvlScene": "Demo scene level",
   "lvlSceneN": "approximate automatic estimate of the English transcript, not a CEFR certificate",
-  "swipe": "Swipe sideways to switch"
+  "swipe": "Swipe sideways to switch",
+  "picksEy": "Editor’s choice",
+  "picksH": "Editor’s picks",
+  "picksL": "Curated by the KinoUA team."
  },
  "nav": {
   "films": "Movies",

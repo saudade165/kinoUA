@@ -955,3 +955,8 @@ nav.crumbs a:hover{background:none}
 .auth .fstat{margin-top:12px}
 .welcome .btn{margin-top:14px}
 .prof.one{grid-template-columns:1fr;max-width:720px}
+/* 4.3: оголошення з адмін-панелі */
+.ann{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 48px 10px 16px;position:relative;background:linear-gradient(90deg,#5B3DDB,#7C5CFC);color:#fff;font-size:14px;font-weight:500;text-align:center}
+.ann p{margin:0;max-width:960px}
+.ann-x{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;cursor:pointer}
+.ann-x:hover{background:rgba(255,255,255,.28)}
