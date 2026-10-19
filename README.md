@@ -125,7 +125,7 @@
   Облік з 19.10.2026 (наявні активні сесії додано під час міграції).
 
 ## Міграції (усі вже застосовані до проєкту `xjkyudhahydookywtahh`)
-`supabase/migrations/`: `…_kinoua_admin_core`, `…_kinoua_admin_rpc`, `…_kinoua_cms_schema`, `…_kinoua_cms_import_catalog` (одноразовий імпорт — не запускати повторно), `…_kinoua_cms_rpc`, `…_kinoua_cms_visible_stable`.
+`supabase/migrations/`: `…_kinoua_admin_core`, `…_kinoua_admin_rpc`, `…_kinoua_cms_schema`, `…_kinoua_cms_import_catalog` (одноразовий імпорт — не запускати повторно), `…_kinoua_cms_rpc`, `…_kinoua_cms_visible_stable`, `…_kinoua_fix_content_list`.
 Для нового проєкту — виконати по порядку в SQL Editor. Вручну нічого виконувати не потрібно.
 
 ## Ручні перевірки (потрібен вхід Google-акаунтом адміністратора)
