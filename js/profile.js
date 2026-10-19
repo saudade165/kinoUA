@@ -1,8 +1,10 @@
-// Профіль. Сервера автентифікації поки немає: сторінка показує стан «не ввійшли» і готовий інтерфейс входу.
-// Жоден спосіб входу не імітує успіх. Паролі й токени на клієнті не обробляються.
+// Профіль. Вхід через Google — Supabase Auth (js/auth.js). Стан «ввійшли» показується лише для сесії, перевіреної сервером Supabase.
+// Telegram і email поки вимкнені («Скоро»): серверної частини для них немає. Жоден спосіб входу не імітує успіх.
 (function(){
 var K=window.KUA,N=K.N,L=K.lang(),esc=K.esc,CFG=(window.KUA_CONFIG||{}).auth||{};
-var T=KUA_I18N.dict("profile");
+var T=KUA_I18N.dict("profile"),A=window.KUA_AUTH||{problem:"sdk"};
+// Стан входу: checking → in / out; err — повідомлення про помилку для показу
+var AUTH={st:A.client?"checking":"out",user:null,err:null};
 function t(k){return T[k][L]}function $(s){return document.querySelector(s)}
 var IG='<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.2-4.8 3.2-8Z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.8 14.2a6.6 6.6 0 0 1 0-4.3V7.1H2.1a11 11 0 0 0 0 9.9l3.7-2.8Z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4Z"/></svg>';
 var IT='<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#29A9EB"/><path fill="#fff" d="m17.6 7.4-1.9 9.5c-.1.6-.5.8-1.1.5l-3-2.2-1.5 1.4c-.2.2-.3.3-.6.3l.2-3.1 5.6-5c.2-.2 0-.3-.4-.1l-6.9 4.3-3-.9c-.6-.2-.6-.6.2-.9l11.6-4.5c.5-.2 1 .1.8.7Z"/></svg>';
@@ -10,16 +12,27 @@ var IE='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="curr
 // Кнопка провайдера: справжнє посилання лише коли в config.js задано серверний маршрут
 function prov(icon,label,url,id){if(url)return'<a class="pbtn" id="'+id+'" href="'+esc(url)+'">'+icon+'<span>'+label+'</span></a>';
 return'<button type="button" class="pbtn" id="'+id+'" disabled aria-describedby="'+id+'-n">'+icon+'<span>'+label+'</span><small id="'+id+'-n">'+t("soon")+'</small></button>'}
+function gBtn(){if(A.problem)return'<button type="button" class="pbtn" id="pg" disabled aria-describedby="pg-n">'+IG+'<span>'+t("g")+'</span><small id="pg-n">'+t("ncH")+'</small></button>';
+if(AUTH.st==="checking")return'<button type="button" class="pbtn" id="pg" disabled aria-busy="true">'+IG+'<span>'+t("chk")+'</span></button>';
+return'<button type="button" class="pbtn" id="pg">'+IG+'<span>'+t("g")+'</span></button>'}
+var NC={url:"ncUrl",key:"ncKey",sdk:"ncSdk",file:"ncFile",secret:"ncSecret"};
+function errBox(){var e=AUTH.err;if(!e)return'';return'<div class="fstat err" role="alert"><b>'+t("errH")+'.</b> '+esc(e.msg)+(e.det?'<details><summary>'+t("errDet")+'</summary><code>'+esc(e.det)+'</code></details>':'')+'</div>'}
+function ncBox(){return A.problem?'<div class="fstat '+(A.problem==="secret"?'err':'info')+'" role="status"><b>'+t("ncH")+'.</b> '+t(NC[A.problem])+'</div>':''}
 function signedOut(){return'<h1>'+t("h")+'</h1><div class="prof"><section class="pcard welcome" aria-labelledby="pw"><span class="avatar" aria-hidden="true"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><h2 id="pw">'+t("wt")+'</h2><p>'+t("wp")+'</p><p class="note">'+t("dev")+'</p></section>'
-+'<section class="pcard auth" aria-labelledby="pa"><h2 id="pa">'+t("st")+'</h2><div class="pbtns">'+prov(IG,t("g"),CFG.googleStartUrl,"pg")+prov(IT,t("tg"),CFG.telegramStartUrl,"pt")+'</div>'
-+((!CFG.googleStartUrl||!CFG.telegramStartUrl)?'<p class="meta small">'+t("soonT")+'</p>':'')
-+'<div class="or"><span>'+t("or")+'</span></div><form id="ef" novalidate><label for="em">'+t("em")+'</label><input id="em" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="name@example.com" aria-describedby="emh em-err"><p class="meta small" id="emh">'+t("emh")+'</p><p class="ferr" id="em-err" hidden></p>'
-+'<button class="btn" id="eb" type="submit">'+IE+'<span>'+t("eb")+'</span></button><div class="fstat" id="fst" role="status" aria-live="polite"></div></form></section></div>'
++'<section class="pcard auth" aria-labelledby="pa"><h2 id="pa">'+t("st")+'</h2><div class="pbtns">'+gBtn()+prov(IT,t("tg"),CFG.telegramStartUrl,"pt")+'</div>'+ncBox()+errBox()+'<div class="fstat" id="gst" role="status" aria-live="polite"></div>'
++((!CFG.telegramStartUrl||!CFG.emailEndpoint)?'<p class="meta small">'+t("soonT")+'</p>':'')
++'<div class="or"><span>'+t("or")+'</span></div><form id="ef" novalidate><label for="em">'+t("em")+'</label><input id="em" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="name@example.com" aria-describedby="emh em-err"'+(CFG.emailEndpoint?'':' disabled')+'><p class="meta small" id="emh">'+(CFG.emailEndpoint?t("emh"):t("emSoon"))+'</p><p class="ferr" id="em-err" hidden></p>'
++'<button class="btn" id="eb" type="submit"'+(CFG.emailEndpoint?'':' disabled')+'>'+IE+'<span>'+t("eb")+'</span>'+(CFG.emailEndpoint?'':' <small>· '+t("soon")+'</small>')+'</button><div class="fstat" id="fst" role="status" aria-live="polite"></div></form></section></div>'
 +device()
 +'<p class="phelp">'+t("hp")+' '+K.support(L)+'</p>'}
-// Макет для користувача, що ввійшов. Викликається лише з реальною сесією від сервера (window.KUA_SESSION), у демо не використовується.
-function signedIn(u){return'<h1>'+t("h")+'</h1><div class="prof"><section class="pcard welcome"><span class="avatar" aria-hidden="true">'+esc((u.name||"?")[0])+'</span><h2>'+esc(u.name||"")+'</h2><dl class="facts"><div><dt>'+t("nm")+'</dt><dd>'+esc(u.name||"")+'</dd></div><div><dt>'+t("em")+'</dt><dd>'+esc(u.email||"")+'</dd></div><div><dt>'+t("via")+'</dt><dd>'+esc(u.provider||"")+'</dd></div></dl><a class="btn secondary" href="'+esc(u.signOutUrl||"#")+'">'+t("out")+'</a></section>'
-+'<section class="pcard"><h2>'+t("f1")+'</h2><p class="meta">'+t("emptyF")+'</p><h2>'+t("f2")+'</h2><p class="meta">'+t("emptyH")+'</p></section></div>'}
+// Макет для користувача, що ввійшов: лише дані з перевіреної сесії Supabase (auth.getUser)
+function dt(v){return v?K.date(String(v).slice(0,10),L):""}
+function signedIn(u){var md=u.user_metadata||{},nm=md.full_name||md.name||u.email||"",av=md.avatar_url||md.picture||"",pv=(u.app_metadata&&u.app_metadata.provider)||"";
+return'<h1>'+t("h")+'</h1><div class="prof one"><section class="pcard welcome" aria-labelledby="pw"><span class="avatar" aria-hidden="true">'+(/^https:\/\//.test(av)?'<img src="'+esc(av)+'" alt="" width="80" height="80" referrerpolicy="no-referrer" onerror="this.remove()">':'')+'<b>'+esc((nm||"?").charAt(0).toUpperCase())+'</b></span><p class="meta">'+t("hi")+'</p><h2 id="pw">'+esc(nm)+'</h2>'
++'<dl class="facts"><div><dt>'+t("nm")+'</dt><dd>'+esc(md.full_name||md.name||"—")+'</dd></div><div><dt>'+t("em")+'</dt><dd>'+esc(u.email||"—")+'</dd></div><div><dt>'+t("via")+'</dt><dd>'+esc(pv==="google"?"Google":pv||"—")+'</dd></div>'
++(u.created_at?'<div><dt>'+t("since")+'</dt><dd>'+dt(u.created_at)+'</dd></div>':'')+(u.last_sign_in_at?'<div><dt>'+t("last")+'</dt><dd>'+dt(u.last_sign_in_at)+'</dd></div>':'')+'</dl>'
++errBox()+'<button type="button" class="btn secondary" id="so">'+t("out")+'</button><p class="meta small">'+t("syncNote")+'</p></section></div>'
++device()+'<p class="phelp">'+t("hp")+' '+K.support(L)+'</p>'}
 var LB={uk:"Українська",ru:"Русский",en:"English"};
 function cardsOr(ids,empty,id){var ms=ids.map(K.byId).filter(Boolean);return ms.length?K.rail(id,ms.map(function(m){return K.card(m,L)}).join(""),L,t(id)):'<div class="empty-state small"><span class="es-ico" aria-hidden="true">'+empty[0]+'</span><p>'+empty[1]+'</p><a class="btn secondary" href="catalog.html">'+t("toCat")+'</a></div>'}
 var HE='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20s-7-4.4-9.2-8.6C1.2 8.1 3.3 4.5 6.9 4.5c2 0 3.6 1.1 5.1 3 1.5-1.9 3.1-3 5.1-3 3.6 0 5.7 3.6 4.1 6.9C19 15.6 12 20 12 20Z"/></svg>',CL='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',BK='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>';
@@ -60,6 +73,21 @@ fetch(CFG.emailEndpoint,{method:"POST",headers:{"Content-Type":"application/json
 .then(function(){b.disabled=false;b.removeAttribute("aria-busy");b.querySelector("span").textContent=t("eb")})})}
 function render(){document.documentElement.lang=N[L];document.title=t("h")+" — KinoUA";
 K.header($("#hd"),L,function(i){L=i;render()},"profile");K.footer($("#ft"),L);
-var s=window.KUA_SESSION;$("#app").innerHTML=s&&s.user?signedIn(s.user):signedOut();init();if($("#subs"))initDevice();if(location.hash){var h=document.querySelector(location.hash);if(h)setTimeout(function(){h.scrollIntoView()},60)}}
+$("#app").innerHTML=AUTH.st==="in"&&AUTH.user?signedIn(AUTH.user):signedOut();init();initAuth();if($("#subs"))initDevice();if(location.hash){var h=document.querySelector(location.hash);if(h)setTimeout(function(){h.scrollIntoView()},60)}}
+// Кнопки входу й виходу
+function initAuth(){var g=$("#pg"),so=$("#so"),gs=$("#gst");
+if(g&&!g.disabled)g.addEventListener("click",function(){AUTH.err=null;g.disabled=true;g.setAttribute("aria-busy","true");g.querySelector("span").textContent=t("go");
+  A.google().then(function(r){if(r&&r.error)throw r.error}).catch(function(e){AUTH.err=errOf(e);g.disabled=false;g.removeAttribute("aria-busy");render()})});
+if(so)so.addEventListener("click",function(){so.disabled=true;so.textContent=t("outing");
+  A.signOut().then(function(r){if(r&&r.error)throw r.error;AUTH={st:"out",user:null,err:null};render()}).catch(function(e){AUTH.err={msg:t("errOut"),det:String(e&&e.message||e)};so.disabled=false;so.textContent=t("out");render()})})}
+function errOf(e){var m=String(e&&(e.message||e.error_description||e.code)||e||""),c=String(e&&(e.code||e.error)||"");
+if(/access_denied/i.test(c+" "+m))return{msg:t("errDenied"),det:""};if(/fetch|network|Failed to fetch|NetworkError/i.test(m))return{msg:t("errNet"),det:m};return{msg:t("errGen"),det:m}}
+// Перевірка сесії: при першому відкритті, після повернення з Google і після перезавантаження сторінки
+function refresh(){if(!A.client){AUTH.st="out";render();return}
+var ue=A.urlError();
+A.check().then(function(r){AUTH.user=r.user;AUTH.st=r.user?"in":"out";AUTH.err=ue?(ue.code==="access_denied"?{msg:t("errDenied"),det:""}:{msg:t("errGen"),det:[ue.ecode||ue.code,ue.desc].filter(Boolean).join(": ")}):(r.err&&!r.user?errOf(r.err):null)})
+.catch(function(e){AUTH.st="out";AUTH.user=null;AUTH.err=errOf(e)})
+.then(function(){A.cleanUrl();render()})}
 render();
+if(A.client){refresh();A.onChange(function(ev){if(ev==="SIGNED_OUT"){AUTH={st:"out",user:null,err:AUTH.err};render()}else refresh()})}
 })();

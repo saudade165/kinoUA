@@ -1,4 +1,4 @@
-# KinoUA (демо) · версія 4.0
+# KinoUA (демо) · версія 4.1
 
 Статичний сайт без збірки й залежностей. Інтерфейс: українська (типова), русский, English. Теми: темна, світла, авто.
 
@@ -15,7 +15,7 @@
 | `catalog.html?type=…&genre=…&year=…&ol=…&lvl=…&q=…&sort=…` | Каталог. Фільтри діють разом: розділ, жанр, рік, **мова оригіналу** (`ol`, код ISO 639-1), **рівень CEFR** (`lvl`, кілька через кому, `unk` = не визначено), назва. Сортування: `pop` (TMDB Popular), `sn`, `sr` (IMDb), `srt` (TMDB), `st`, `sy`, `rec` |
 | `movie.html?id=<slug>[&s=<сезон>&e=<серія>]` | Один шаблон для фільмів, мультфільмів і серіалів: оцінки IMDb і TMDB окремо, перехід на IMDb, мова й рівень, трейлер, актори, сезони |
 | `search.html?q=…` | Пошук за оригінальною, українською й російською назвою |
-| `profile.html` | Вхід (лише інтерфейс, без сервера), налаштування, обране, історія, словник |
+| `profile.html` | Вхід через Google (Supabase Auth), налаштування, обране, історія, словник |
 | `watch.html` | Лише переадресація старих посилань на `movie.html` (повного перегляду фільмів немає) |
 
 ## Структура
@@ -66,15 +66,31 @@
 **Перед публічним запуском перевірте умови TMDB, IMDb і права на зображення.**
 
 ## Налаштування (`js/config.js`)
+- `supabase.url` і `supabase.publishableKey` — **публічні** значення проєкту Supabase для входу через Google. Поки порожні — кнопка Google неактивна з поясненням.
 - `supportTelegramUrl` — посилання на чат підтримки. Поки порожнє — «Підтримка в Telegram · скоро».
-- `auth.*` — серверні маршрути входу. Порожнє = спосіб вимкнено.
+- `auth.emailEndpoint`, `auth.telegramStartUrl` — майбутні серверні маршрути. Порожнє = спосіб вимкнено («Скоро»).
 
-## Автентифікація: що потрібно від сервера
-Бекенду немає, тому профіль показує стан «не ввійшли» і **не імітує** вхід. Обране, історія, словник і налаштування працюють локально (localStorage).
-1. **Google** — OAuth 2.0 Authorization Code + PKCE, секрети лише на сервері → `auth.googleStartUrl`.
-2. **Email** — `POST auth.emailEndpoint` `{email, lang}` → лист з одноразовим посиланням.
-3. **Telegram** — Login Widget або бот; підпис перевіряється лише на сервері → `auth.telegramStartUrl`.
-4. Сесія — cookie `HttpOnly; Secure; SameSite=Lax`; сервер вбудовує `window.KUA_SESSION={user:{…}}`.
+## Вхід через Google (Supabase Auth)
+- `profile.html` підключає офіційний SDK `@supabase/supabase-js@2.117.2` з jsDelivr (версія зафіксована, перевірка цілісності SRI), потім `js/auth.js` — **один** клієнт на сторінку.
+- Потік PKCE: кнопка → `signInWithOAuth({provider:"google", options:{redirectTo}})` → Google → Supabase → `…/kinoUA/profile.html?code=…`.
+  SDK сам обмінює `code` на сесію (`detectSessionInUrl`), після цього службові параметри прибираються з адреси.
+- «Ввійшли» показується лише після перевірки сесії на сервері (`auth.getUser()`), не за параметрами в адресі. Сесію зберігає й оновлює SDK; після перезавантаження вона відновлюється.
+- Вихід — `auth.signOut()`. Помилки OAuth (скасування, мережа, відповідь сервера) показуються мовою інтерфейсу.
+- У браузер можна класти лише Project URL і publishable/anon key. `service_role`/secret key і Google Client Secret — ніколи (сайт відмовиться запускати вхід, якщо побачить секретний ключ).
+
+### Що налаштувати вручну
+1. **Supabase → Project Settings → API Keys**: скопіюйте *Project URL* і *Publishable key* (або legacy *anon*) у `js/config.js`.
+2. **Supabase → Authentication → URL Configuration**: Site URL `https://saudade165.github.io/kinoUA/`; Redirect URLs `https://saudade165.github.io/kinoUA/**`
+   (або точна адреса `https://saudade165.github.io/kinoUA/profile.html`). Для локальної перевірки можна додати `http://localhost:8765/profile.html`.
+3. **Supabase → Authentication → Sign In / Providers → Google**: увімкнено, заповнені *Client ID* і *Client Secret* з Google Cloud; скопіюйте звідти *Callback URL* (`https://<id-проєкту>.supabase.co/auth/v1/callback`).
+4. **Google Cloud Console → APIs & Services → Credentials → OAuth client (Web application)**: Authorized JavaScript origins `https://saudade165.github.io`;
+   Authorized redirect URIs — саме *Callback URL* із кроку 3 (адреса Supabase, а не адреса сайту). Екран згоди OAuth має бути налаштований (у режимі Testing — додайте тестових користувачів).
+
+### Майбутня синхронізація даних
+Обране, історія, словник і налаштування поки зберігаються лише в браузері. Шаблон таблиць із Row Level Security (кожен бачить лише свої рядки) — `supabase/rls-template.sql`; зараз він не виконаний.
+
+## Інші способи входу
+Telegram і email вимкнені з підписом «Скоро»: для них немає серверної частини. Сайт не імітує надсилання листів чи вхід.
 
 ## Теми
 Перемикач у шапці й у профілі: Темна · Світла · Авто (світла 07:00–19:00). Ручний вибір зберігається й має пріоритет над авто.
